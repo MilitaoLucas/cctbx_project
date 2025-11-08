@@ -7,6 +7,10 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
+include_directories(${CMAKE_SOURCE_DIR}/ucif/antlr3/include)
+include_directories(${CMAKE_SOURCE_DIR}/ucif/antlr3)
+include_directories(${CMAKE_SOURCE_DIR}/fable)
+
 # Build libiotbx_pdb library
 file(GLOB IOTBX_PDB_LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/pdb/*.cpp")
 list(FILTER IOTBX_PDB_LIB_SOURCES EXCLUDE REGEX ".*_ext\\.cpp$")

@@ -3,7 +3,8 @@ project(ucif)
 
 # Python package directory
 set(UCIF_PYTHON_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/antlr3)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/antlr3/include)
 # Add Python modules to be installed
 install(DIRECTORY ${UCIF_PYTHON_DIR}/
     DESTINATION lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages/ucif

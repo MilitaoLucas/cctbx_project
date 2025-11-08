@@ -4,7 +4,7 @@ project(fable)
 # Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Auto-detect and build all *_ext.cpp files as Python extension modules

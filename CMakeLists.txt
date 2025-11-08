@@ -93,6 +93,17 @@ if(HDF5_FOUND)
     message(STATUS "HDF5 found: ${HDF5_VERSION}")
 endif()
 
+# Find Eigen3
+find_package(Eigen3 QUIET)
+if(EIGEN3_FOUND)
+    message(STATUS "Eigen3 found: ${EIGEN3_VERSION}")
+    include_directories(${EIGEN3_INCLUDE_DIR})
+else()
+    message(STATUS "Eigen3 not found - some features may be disabled")
+endif()
+
+include_directories(${CMAKE_SOURCE_DIR}/cctbx/uctbx/lrl/LatticeRepLib/LatticeRepresentationLib)
+include_directories(${CMAKE_SOURCE_DIR}/cctbx/uctbx/lrl/LatticeRepLib/LRL_Tools)
 # OpenMP support
 if(ENABLE_OPENMP)
     find_package(OpenMP)
