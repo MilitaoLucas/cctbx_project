@@ -1,0 +1,17 @@
+# cudatbx - CUDA toolbox
+project(cudatbx)
+
+# Python package directory
+set(CUDATBX_PYTHON_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Add Python modules to be installed
+install(DIRECTORY ${CUDATBX_PYTHON_DIR}/
+    DESTINATION lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages/cudatbx
+    FILES_MATCHING
+    PATTERN "*.py"
+    PATTERN "__pycache__" EXCLUDE
+    PATTERN "*.pyc" EXCLUDE
+)
+
+message(STATUS "Added module: cudatbx")
+

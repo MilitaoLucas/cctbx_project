@@ -1,0 +1,311 @@
+cmake_minimum_required(VERSION 3.20)
+project(cctbx_project VERSION 2025.10 LANGUAGES C CXX)
+
+# Set CMake policies
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 OLD)  # Continue to use FindBoost module
+endif()
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Set C standard
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# Export compile commands for IDEs
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Options
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(ENABLE_OPENMP "Enable OpenMP support" OFF)
+option(ENABLE_CUDA "Enable CUDA support" OFF)
+option(ENABLE_KOKKOS "Enable Kokkos support" OFF)
+option(ENABLE_BOOST_THREADS "Enable Boost.Thread support" ON)
+option(USE_CONDA "Use Conda environment" OFF)
+
+# Find Python
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+message(STATUS "Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
+message(STATUS "Python3_INCLUDE_DIRS: ${Python3_INCLUDE_DIRS}")
+message(STATUS "Python3_LIBRARIES: ${Python3_LIBRARIES}")
+
+# Find Boost
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
+set(BOOST_COMPONENTS python numpy)
+if(ENABLE_BOOST_THREADS)
+    list(APPEND BOOST_COMPONENTS thread system chrono)
+endif()
+
+find_package(Boost 1.60 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+message(STATUS "Boost_VERSION: ${Boost_VERSION}")
+message(STATUS "Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
+message(STATUS "Boost_LIBRARIES: ${Boost_LIBRARIES}")
+
+# Find HDF5
+find_package(HDF5 COMPONENTS C)
+if(HDF5_FOUND)
+    message(STATUS "HDF5 found: ${HDF5_VERSION}")
+endif()
+
+# OpenMP support
+if(ENABLE_OPENMP)
+    find_package(OpenMP)
+    if(OPENMP_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    endif()
+endif()
+
+# CUDA support
+if(ENABLE_CUDA)
+    enable_language(CUDA)
+    find_package(CUDAToolkit)
+endif()
+
+# Global include directories
+include_directories(
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}/include
+    ${Python3_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS}
+)
+
+# Global definitions
+add_compile_definitions(
+    BOOST_PYTHON_MAX_BASES=2
+)
+
+# Compiler-specific settings
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -Wno-sign-compare)
+    if(CMAKE_BUILD_TYPE MATCHES "Release")
+        add_compile_options(-O3)
+    endif()
+elseif(MSVC)
+    add_compile_options(/W3 /EHsc)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
+
+# Platform-specific settings
+if(WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
+elseif(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+endif()
+
+# Set output directories
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# Python module output directory
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib)
+
+# Create include directory for generated headers
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
+
+# Helper function to add Python extension modules
+function(add_python_module MODULE_NAME)
+    cmake_parse_arguments(ARG "" "" "SOURCES;LINK_LIBRARIES" ${ARGN})
+
+    Python3_add_library(${MODULE_NAME} MODULE ${ARG_SOURCES})
+
+    target_link_libraries(${MODULE_NAME} PRIVATE
+        ${Boost_LIBRARIES}
+        ${Python3_LIBRARIES}
+        ${ARG_LINK_LIBRARIES}
+    )
+
+    # Set module properties
+    set_target_properties(${MODULE_NAME} PROPERTIES
+        PREFIX ""
+        SUFFIX "${Python3_SOABI}.so"
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+    )
+
+    if(APPLE)
+        set_target_properties(${MODULE_NAME} PROPERTIES
+            SUFFIX ".so"
+            LINK_FLAGS "-undefined dynamic_lookup"
+        )
+    endif()
+endfunction()
+
+# Add subdirectories for each module
+# Note: Order matters due to dependencies
+
+# Core infrastructure modules (Level 0 - no dependencies)
+if(EXISTS ${CMAKE_SOURCE_DIR}/boost_adaptbx/CMakeLists.txt)
+    add_subdirectory(boost_adaptbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/libtbx/CMakeLists.txt)
+    add_subdirectory(libtbx)
+endif()
+
+# Scientific computing base (Level 1 - depends on libtbx)
+if(EXISTS ${CMAKE_SOURCE_DIR}/scitbx/CMakeLists.txt)
+    add_subdirectory(scitbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/omptbx/CMakeLists.txt)
+    add_subdirectory(omptbx)
+endif()
+
+# Crystallography core (Level 2 - depends on scitbx)
+if(EXISTS ${CMAKE_SOURCE_DIR}/cctbx/CMakeLists.txt)
+    add_subdirectory(cctbx)
+endif()
+
+# File I/O modules (Level 2)
+if(EXISTS ${CMAKE_SOURCE_DIR}/cbflib_adaptbx/CMakeLists.txt)
+    add_subdirectory(cbflib_adaptbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/fable/CMakeLists.txt)
+    add_subdirectory(fable)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/ucif/CMakeLists.txt)
+    add_subdirectory(ucif)
+endif()
+
+# Advanced modules (Level 3 - depends on cctbx)
+if(EXISTS ${CMAKE_SOURCE_DIR}/smtbx/CMakeLists.txt)
+    add_subdirectory(smtbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/iotbx/CMakeLists.txt)
+    add_subdirectory(iotbx)
+endif()
+
+# Macromolecular crystallography (Level 4 - depends on iotbx)
+if(EXISTS ${CMAKE_SOURCE_DIR}/mmtbx/CMakeLists.txt)
+    add_subdirectory(mmtbx)
+endif()
+
+# Data processing and analysis modules
+if(EXISTS ${CMAKE_SOURCE_DIR}/spotfinder/CMakeLists.txt)
+    add_subdirectory(spotfinder)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/rstbx/CMakeLists.txt)
+    add_subdirectory(rstbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/serialtbx/CMakeLists.txt)
+    add_subdirectory(serialtbx)
+endif()
+
+# Simulation modules
+if(EXISTS ${CMAKE_SOURCE_DIR}/simtbx/CMakeLists.txt)
+    add_subdirectory(simtbx)
+endif()
+
+# X-ray Free Electron Laser (XFEL) modules
+if(EXISTS ${CMAKE_SOURCE_DIR}/xfel/CMakeLists.txt)
+    add_subdirectory(xfel)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/prime/CMakeLists.txt)
+    add_subdirectory(prime)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/iota/CMakeLists.txt)
+    add_subdirectory(iota)
+endif()
+
+# Specialized computational modules
+if(EXISTS ${CMAKE_SOURCE_DIR}/fast_linalg/CMakeLists.txt)
+    add_subdirectory(fast_linalg)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/fftw3tbx/CMakeLists.txt)
+    add_subdirectory(fftw3tbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/cma_es/CMakeLists.txt)
+    add_subdirectory(cma_es)
+endif()
+
+# Parallel computing modules
+if(EXISTS ${CMAKE_SOURCE_DIR}/cudatbx/CMakeLists.txt AND ENABLE_CUDA)
+    add_subdirectory(cudatbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/kokkostbx/CMakeLists.txt AND ENABLE_KOKKOS)
+    add_subdirectory(kokkostbx)
+endif()
+
+# External library adapters
+if(EXISTS ${CMAKE_SOURCE_DIR}/clipper_adaptbx/CMakeLists.txt)
+    add_subdirectory(clipper_adaptbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/chiltbx/CMakeLists.txt)
+    add_subdirectory(chiltbx)
+endif()
+
+# GUI and visualization modules
+if(EXISTS ${CMAKE_SOURCE_DIR}/gltbx/CMakeLists.txt)
+    add_subdirectory(gltbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/wxtbx/CMakeLists.txt)
+    add_subdirectory(wxtbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/qttbx/CMakeLists.txt)
+    add_subdirectory(qttbx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/crys3d/CMakeLists.txt)
+    add_subdirectory(crys3d)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/cootbx/CMakeLists.txt)
+    add_subdirectory(cootbx)
+endif()
+
+# Documentation and website
+if(EXISTS ${CMAKE_SOURCE_DIR}/sphinx/CMakeLists.txt)
+    add_subdirectory(sphinx)
+endif()
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/cctbx_website/CMakeLists.txt)
+    add_subdirectory(cctbx_website)
+endif()
+
+# Installation rules
+install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/
+    DESTINATION lib
+    FILES_MATCHING PATTERN "*.so"
+)
+
+install(DIRECTORY ${CMAKE_BINARY_DIR}/bin/
+    DESTINATION bin
+    USE_SOURCE_PERMISSIONS
+)
+
+# Print configuration summary
+message(STATUS "")
+message(STATUS "CCTBX Configuration Summary:")
+message(STATUS "  Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Install prefix: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "  C++ compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "  Python: ${Python3_VERSION}")
+message(STATUS "  Boost: ${Boost_VERSION}")
+message(STATUS "  OpenMP: ${ENABLE_OPENMP}")
+message(STATUS "  CUDA: ${ENABLE_CUDA}")
+message(STATUS "  Kokkos: ${ENABLE_KOKKOS}")
+message(STATUS "")
+
