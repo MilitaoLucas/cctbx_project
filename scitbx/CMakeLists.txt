@@ -6,12 +6,22 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
+# Custom target to generate required source files
+add_custom_target(scitbx_generate_sources
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/source_generators/array_family/run_generate_all.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating scitbx array_family source files"
+    VERBATIM
+)
+
 # Build libscitbx_boost_python library
 file(GLOB SCITBX_BOOST_PYTHON_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/boost_python/*.cpp"
 )
 if(SCITBX_BOOST_PYTHON_SOURCES)
     add_library(scitbx_boost_python SHARED ${SCITBX_BOOST_PYTHON_SOURCES})
+    add_dependencies(scitbx_boost_python scitbx_generate_sources)
     target_link_libraries(scitbx_boost_python
         ${Boost_LIBRARIES}
         ${Python3_LIBRARIES}
@@ -47,6 +57,7 @@ endif()
 # Auto-detect and build all *_ext.cpp files as Python extension modules
 file(GLOB_RECURSE SCITBX_ALL_EXT_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*_ext.cpp")
 
+set(SCITBX_EXT_TARGETS "")
 foreach(ext_source ${SCITBX_ALL_EXT_SOURCES})
     # Get the relative path and create module name
     file(RELATIVE_PATH rel_path ${CMAKE_CURRENT_SOURCE_DIR} ${ext_source})
@@ -57,9 +68,13 @@ foreach(ext_source ${SCITBX_ALL_EXT_SOURCES})
     add_python_module(${module_name}
         SOURCES ${ext_source}
     )
+    list(APPEND SCITBX_EXT_TARGETS ${module_name})
 endforeach()
 
-message(STATUS "Added module: scitbx with ${list_length_result} extension modules")
+# Export targets for parent CMakeLists.txt
+set(SCITBX_ALL_TARGETS ${SCITBX_EXT_TARGETS} PARENT_SCOPE)
+
+message(STATUS "Added module: scitbx with ${CMAKE_MATCH_COUNT} extension modules")
 
 # Install all Python files
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/

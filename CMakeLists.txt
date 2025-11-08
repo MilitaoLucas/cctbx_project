@@ -113,6 +113,11 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib)
 # Create include directory for generated headers
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
 
+# Top-level target to generate all source files
+add_custom_target(generate_sources
+    COMMENT "Generating all required source files for all modules"
+)
+
 # Helper function to add Python extension modules
 function(add_python_module MODULE_NAME)
     cmake_parse_arguments(ARG "" "" "SOURCES;LINK_LIBRARIES" ${ARGN})
@@ -284,6 +289,96 @@ endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/cctbx_website/CMakeLists.txt)
     add_subdirectory(cctbx_website)
 endif()
+
+# Make top-level generate_sources depend on all module-specific generators
+if(TARGET scitbx_generate_sources)
+    add_dependencies(generate_sources scitbx_generate_sources)
+endif()
+if(TARGET cctbx_generate_sources)
+    add_dependencies(generate_sources cctbx_generate_sources)
+endif()
+
+# Create a custom target that builds ALL libraries and extensions
+add_custom_target(build_all_libs
+    COMMENT "Building all CCTBX libraries and Python extensions"
+)
+
+# Collect all library targets that were created
+set(ALL_LIB_TARGETS "")
+
+# Helper macro to add targets to build_all_libs
+macro(add_to_all_libs target_name)
+    if(TARGET ${target_name})
+        list(APPEND ALL_LIB_TARGETS ${target_name})
+        add_dependencies(build_all_libs ${target_name})
+    endif()
+endmacro()
+
+# Add all known library targets
+# Boost adaptbx extensions
+add_to_all_libs(boost_python_hybrid_times_ext)
+add_to_all_libs(boost_python_meta_ext)
+add_to_all_libs(boost_optional_ext)
+add_to_all_libs(boost_rational_ext)
+add_to_all_libs(std_pair_ext)
+add_to_all_libs(boost_tuple_ext)
+add_to_all_libs(boost_adaptbx_graph_ext)
+add_to_all_libs(boost_adaptbx_graph_connected_component_algorithm_ext)
+add_to_all_libs(boost_adaptbx_graph_breadth_first_search_ext)
+add_to_all_libs(boost_adaptbx_graph_graph_structure_comparison_ext)
+add_to_all_libs(boost_adaptbx_graph_maximum_clique_ext)
+add_to_all_libs(boost_adaptbx_graph_min_cut_max_flow_ext)
+add_to_all_libs(boost_adaptbx_graph_utility_ext)
+add_to_all_libs(boost_adaptbx_graph_metric_ext)
+add_to_all_libs(boost_adaptbx_graph_clustering_algorithm_ext)
+add_to_all_libs(boost_adaptbx_boost_thread_test_ext)
+add_to_all_libs(boost_adaptbx_python_streambuf_test_ext)
+
+# Scitbx libraries
+add_to_all_libs(scitbx_boost_python)
+add_to_all_libs(scitbx_minpack)
+add_to_all_libs(scitbx_slatec)
+
+# Cctbx libraries
+add_to_all_libs(cctbx)
+add_to_all_libs(cctbx_sgtbx_asu)
+add_to_all_libs(asymmetric_map)
+
+# Omptbx library
+add_to_all_libs(omptbx)
+
+# Iotbx libraries
+add_to_all_libs(iotbx_pdb)
+add_to_all_libs(iotbx_xplor)
+add_to_all_libs(iotbx_mtz)
+
+# Smtbx libraries
+add_to_all_libs(smtbx_refinement_constraints)
+
+# Fast linalg library
+add_to_all_libs(fast_linalg)
+
+# Also make build_all_libs depend on generate_sources
+add_dependencies(build_all_libs generate_sources)
+
+# Auto-detect all Python extension modules by finding all *_ext targets
+# This uses CMake's BUILDSYSTEM_TARGETS property to get all targets
+get_property(all_targets DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
+set(EXT_TARGET_COUNT 0)
+foreach(target ${all_targets})
+    # Add any target ending with _ext to build_all_libs
+    if(target MATCHES ".*_ext$")
+        add_to_all_libs(${target})
+        math(EXPR EXT_TARGET_COUNT "${EXT_TARGET_COUNT} + 1")
+    endif()
+endforeach()
+
+message(STATUS "")
+message(STATUS "Custom build targets:")
+message(STATUS "  generate_sources  - Generate all required source files")
+message(STATUS "  build_all_libs    - Build all CCTBX libraries and extensions")
+message(STATUS "                      (${EXT_TARGET_COUNT} extension modules detected)")
+message(STATUS "")
 
 # Installation rules
 install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/

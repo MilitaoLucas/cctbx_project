@@ -6,6 +6,19 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
+# Custom target to generate required source files
+add_custom_target(cctbx_generate_sources
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/source_generators/run_generate_flex_fwd.py
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/source_generators/eltbx/run_generate_henke.py
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/source_generators/eltbx/run_generate_sasaki.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Generating cctbx source files (flex_fwd.h, henke, sasaki)"
+    VERBATIM
+)
+
 # Build libcctbx library
 set(CCTBX_LIB_SOURCES
     eltbx/basic.cpp
@@ -90,6 +103,7 @@ endforeach()
 
 if(CCTBX_LIB_SOURCES_FILTERED)
     add_library(cctbx SHARED ${CCTBX_LIB_SOURCES_FILTERED})
+    add_dependencies(cctbx cctbx_generate_sources)
     target_link_libraries(cctbx
         ${Boost_LIBRARIES}
         m
@@ -146,6 +160,7 @@ endif()
 # Auto-detect and build all *_ext.cpp files as Python extension modules
 file(GLOB_RECURSE CCTBX_ALL_EXT_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*_ext.cpp")
 
+set(CCTBX_EXT_TARGETS "")
 foreach(ext_source ${CCTBX_ALL_EXT_SOURCES})
     # Get the relative path and create module name
     file(RELATIVE_PATH rel_path ${CMAKE_CURRENT_SOURCE_DIR} ${ext_source})
@@ -158,7 +173,11 @@ foreach(ext_source ${CCTBX_ALL_EXT_SOURCES})
         add_python_module(${module_name}
             SOURCES ${ext_source}
         )
+        list(APPEND CCTBX_EXT_TARGETS ${module_name})
     endif()
 endforeach()
+
+# Export targets for parent CMakeLists.txt
+set(CCTBX_ALL_TARGETS ${CCTBX_EXT_TARGETS} PARENT_SCOPE)
 
 message(STATUS "Added module: cctbx")
