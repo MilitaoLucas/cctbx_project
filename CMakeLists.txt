@@ -27,10 +27,50 @@ option(ENABLE_BOOST_THREADS "Enable Boost.Thread support" ON)
 option(USE_CONDA "Use Conda environment" OFF)
 
 # Find Python
+if (DEFINED Python_EXECUTABLE)
+  get_filename_component(Python_HOME ${Python_EXECUTABLE} DIRECTORY)
+  get_filename_component(Python_HOME ${Python_HOME} DIRECTORY)
+  set(Python_INCLUDE_DIR "${Python_HOME}/include/python${Python_VERSION}")
+endif ()
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+set(Python_FIND_VIRTUALENV "ONLY")
+set(Python_FIND_STRATEGY "LOCATION")
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 message(STATUS "Python3_EXECUTABLE: ${Python3_EXECUTABLE}")
 message(STATUS "Python3_INCLUDE_DIRS: ${Python3_INCLUDE_DIRS}")
 message(STATUS "Python3_LIBRARIES: ${Python3_LIBRARIES}")
+include_directories(".venv/lib/python3.13/site-packages/ccp4io/libccp4/ccp4")
+# Get Python site-packages directory for finding installed libraries (like CCP4)
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -c "import site; print(site.getsitepackages()[0])"
+    OUTPUT_VARIABLE Python3_SITELIB
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+message(STATUS "Python3_SITELIB: ${Python3_SITELIB}")
+
+# Add Python site-packages include and lib directories
+if(EXISTS "${Python3_SITELIB}/include")
+    include_directories("${Python3_SITELIB}/include")
+    message(STATUS "Added Python site-packages include: ${Python3_SITELIB}/include")
+endif()
+if(EXISTS "${Python3_SITELIB}/lib")
+    link_directories("${Python3_SITELIB}/lib")
+    message(STATUS "Added Python site-packages lib: ${Python3_SITELIB}/lib")
+endif()
+
+# Also check for venv/virtualenv library paths
+get_filename_component(Python3_PREFIX "${Python3_EXECUTABLE}" DIRECTORY)
+get_filename_component(Python3_PREFIX "${Python3_PREFIX}" DIRECTORY)
+if(EXISTS "${Python3_PREFIX}/include")
+    include_directories("${Python3_PREFIX}/include")
+    message(STATUS "Added Python env include: ${Python3_PREFIX}/include")
+endif()
+if(EXISTS "${Python3_PREFIX}/lib")
+    link_directories("${Python3_PREFIX}/lib")
+    message(STATUS "Added Python env lib: ${Python3_PREFIX}/lib")
+endif()
 
 # Find Boost
 set(Boost_USE_STATIC_LIBS OFF)
@@ -373,11 +413,30 @@ foreach(target ${all_targets})
     endif()
 endforeach()
 
+# Create a target that builds EVERYTHING (all targets)
+add_custom_target(build_all
+    COMMENT "Building all CCTBX targets (libraries, extensions, executables, tests)"
+)
+
+# Make build_all depend on generate_sources first
+add_dependencies(build_all generate_sources)
+
+# Add ALL targets to build_all (not just libraries and extensions)
+foreach(target ${all_targets})
+    # Exclude utility targets and the build_all target itself
+    if(NOT target MATCHES "^(generate_sources|build_all_libs|build_all)$")
+        if(TARGET ${target})
+            add_dependencies(build_all ${target})
+        endif()
+    endif()
+endforeach()
+
 message(STATUS "")
 message(STATUS "Custom build targets:")
 message(STATUS "  generate_sources  - Generate all required source files")
 message(STATUS "  build_all_libs    - Build all CCTBX libraries and extensions")
 message(STATUS "                      (${EXT_TARGET_COUNT} extension modules detected)")
+message(STATUS "  build_all         - Build ALL targets (libs, exts, exes, tests)")
 message(STATUS "")
 
 # Installation rules

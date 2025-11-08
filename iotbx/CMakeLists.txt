@@ -35,8 +35,20 @@ endif()
 file(GLOB IOTBX_MTZ_LIB_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/mtz/*.cpp")
 list(FILTER IOTBX_MTZ_LIB_SOURCES EXCLUDE REGEX ".*_ext\\.cpp$")
 if(IOTBX_MTZ_LIB_SOURCES)
+    # Try to find CCP4 library
+    find_library(CCP4C_LIBRARY NAMES ccp4c libccp4c)
+
     add_library(iotbx_mtz SHARED ${IOTBX_MTZ_LIB_SOURCES})
     target_link_libraries(iotbx_mtz cctbx)
+
+    # Link CCP4 library if found
+    if(CCP4C_LIBRARY)
+        target_link_libraries(iotbx_mtz ${CCP4C_LIBRARY})
+        message(STATUS "Found CCP4 library: ${CCP4C_LIBRARY}")
+    else()
+        message(WARNING "CCP4 library (libccp4c) not found - iotbx_mtz may not link correctly")
+    endif()
+
     set_target_properties(iotbx_mtz PROPERTIES
         OUTPUT_NAME "iotbx_mtz"
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib

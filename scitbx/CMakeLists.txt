@@ -9,9 +9,11 @@ include_directories(
 # Custom target to generate required source files
 add_custom_target(scitbx_generate_sources
     COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}"
+            ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/source_generators/run_generate_flex_fwd.py
+    COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_SOURCE_DIR}"
             ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/source_generators/array_family/run_generate_all.py
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Generating scitbx array_family source files"
+    COMMENT "Generating scitbx source files (flex_fwd.h, array_family)"
     VERBATIM
 )
 
