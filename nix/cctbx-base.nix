@@ -6,7 +6,6 @@ let
   inherit (pkgs) lib;
   pythonBoost = pkgs.python313Packages.boost.override {
     enableNumpy = true;
-    patches = [ ./boost-python-numpy2.patch ];
   };
   python = pkgs.python313.withPackages (ps: with ps; [
     numpy
