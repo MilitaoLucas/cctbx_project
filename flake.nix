@@ -10,7 +10,22 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
+      overlays.default = final: prev: {
+        pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
+          (pythonFinal: _pythonPrev: {
+            cctbx = import ./nix/cctbx.nix {
+              pkgs = final;
+              src = ./.;
+            };
+          })
+        ];
+      };
+
       packages = forAllSystems (system: {
+        cctbx = import ./nix/cctbx.nix {
+          pkgs = import nixpkgs { inherit system; };
+          src = ./.;
+        };
         cctbx-base = import ./nix/cctbx-base.nix {
           pkgs = import nixpkgs { inherit system; };
           src = ./.;

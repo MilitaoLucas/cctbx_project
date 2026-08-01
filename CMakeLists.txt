@@ -62,7 +62,7 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E make_directory
     "${CCTBX_GENERATED_ARRAY_FAMILY_DIR}/detail"
   COMMAND ${CMAKE_COMMAND} -E env
-    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}"
+    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}:$ENV{PYTHONPATH}"
     "${Python3_EXECUTABLE}" -c
     "from scitbx.source_generators.array_family import generate_all; generate_all.refresh(r'${CCTBX_GENERATED_ARRAY_FAMILY_DIR}')"
   COMMAND ${CMAKE_COMMAND} -E touch "${CCTBX_GENERATED_ARRAY_FAMILY_STAMP}"
@@ -185,6 +185,7 @@ if(CCTBX_BUILD_PYTHON)
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}/include
   )
+  add_dependencies(scitbx_boost_python cctbx_generated_headers)
 
   function(cctbx_add_python_extension target)
     cmake_parse_arguments(ARG "" "" "SOURCES;LIBRARIES" ${ARGN})
@@ -202,6 +203,7 @@ if(CCTBX_BUILD_PYTHON)
       ${CMAKE_CURRENT_BINARY_DIR}/include
       Python3::NumPy
     )
+    add_dependencies(${target} cctbx_generated_headers)
     set_target_properties(${target} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
     )
@@ -221,6 +223,53 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES scitbx_boost_python
   )
 
+  cctbx_add_python_extension(boost_tuple_ext
+    SOURCES boost_adaptbx/tuple_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(std_pair_ext
+    SOURCES boost_adaptbx/std_pair_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_rational_ext
+    SOURCES boost_adaptbx/rational_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_stl_set_ext
+    SOURCES scitbx/stl/set_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_stl_vector_ext
+    SOURCES scitbx/stl/vector_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_stl_map_ext
+    SOURCES scitbx/stl/map_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_array_family_shared_ext
+    SOURCES scitbx/array_family/boost_python/shared_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_linalg_ext
+    SOURCES
+      scitbx/linalg/boost_python/linalg_ext.cpp
+      scitbx/linalg/boost_python/matrix.cpp
+      scitbx/linalg/boost_python/cholesky.cpp
+      scitbx/linalg/boost_python/householder.cpp
+      scitbx/linalg/boost_python/svd.cpp
+      scitbx/linalg/boost_python/eigensystem.cpp
+      scitbx/linalg/boost_python/lapack_fem_bpl.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
   cctbx_add_python_extension(cctbx_array_family_flex_ext
     SOURCES
       cctbx/array_family/boost_python/flex_ext.cpp
@@ -229,7 +278,6 @@ if(CCTBX_BUILD_PYTHON)
       cctbx/array_family/boost_python/flex_xray_scatterer.cpp
     LIBRARIES cctbx_core scitbx_boost_python
   )
-  add_dependencies(cctbx_array_family_flex_ext cctbx_generated_headers)
 
   cctbx_add_python_extension(scitbx_array_family_flex_ext
     SOURCES
@@ -261,7 +309,6 @@ if(CCTBX_BUILD_PYTHON)
       scitbx/array_family/boost_python/numpy_bridge.cpp
     LIBRARIES scitbx_boost_python
   )
-  add_dependencies(scitbx_array_family_flex_ext cctbx_generated_headers)
   target_compile_definitions(scitbx_array_family_flex_ext PRIVATE
     SCITBX_HAVE_NUMPY_INCLUDE
   )
