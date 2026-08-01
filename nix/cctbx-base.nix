@@ -46,6 +46,9 @@ pkgs.stdenv.mkDerivation {
     test -s "$out/lib/libcctbx.so"
     test -s "$out/lib/libscitbx_slatec.so"
     ${python}/bin/python --version
+    PYTHONPATH="$out/lib/python3.13/site-packages" \
+      LD_LIBRARY_PATH="$out/lib" \
+      ${python}/bin/python -c 'import boost_python_meta_ext, boost_optional_ext, scitbx_array_family_flex_ext, cctbx_array_family_flex_ext, cctbx_statistics_ext, scitbx_math_ext, scitbx_random_ext, scitbx_sparse_ext'
     runHook postInstallCheck
   '';
 

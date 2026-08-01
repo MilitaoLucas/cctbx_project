@@ -210,6 +210,17 @@ if(CCTBX_BUILD_PYTHON)
     )
   endfunction()
 
+  cctbx_add_python_extension(boost_python_meta_ext
+    SOURCES boost_adaptbx/meta_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+  target_compile_definitions(boost_python_meta_ext PRIVATE USE_CONDA)
+
+  cctbx_add_python_extension(boost_optional_ext
+    SOURCES boost_adaptbx/optional_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
   cctbx_add_python_extension(cctbx_array_family_flex_ext
     SOURCES
       cctbx/array_family/boost_python/flex_ext.cpp
@@ -258,6 +269,59 @@ if(CCTBX_BUILD_PYTHON)
   cctbx_add_python_extension(cctbx_statistics_ext
     SOURCES cctbx/boost_python/statistics_ext.cpp
     LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(scitbx_math_ext
+    SOURCES
+      scitbx/math/boost_python/math_ext.cpp
+      scitbx/math/boost_python/basic_statistics.cpp
+      scitbx/math/boost_python/gaussian.cpp
+      scitbx/math/boost_python/golay.cpp
+      scitbx/math/boost_python/minimum_covering_sphere.cpp
+      scitbx/math/boost_python/principal_axes_of_inertia.cpp
+      scitbx/math/boost_python/row_echelon.cpp
+      scitbx/math/boost_python/tensor_rank_2.cpp
+      scitbx/math/boost_python/chebyshev.cpp
+      scitbx/math/boost_python/icosahedron.cpp
+      scitbx/math/boost_python/slatec.cpp
+      scitbx/math/boost_python/line_search.cpp
+      scitbx/math/boost_python/r3_rotation.cpp
+      scitbx/math/boost_python/resample.cpp
+      scitbx/math/boost_python/quadrature.cpp
+      scitbx/math/boost_python/unimodular_generator.cpp
+      scitbx/math/boost_python/halton.cpp
+      scitbx/math/boost_python/least_squares_plane.cpp
+      scitbx/math/boost_python/continued_fraction.cpp
+      scitbx/math/boost_python/numeric_limits.cpp
+      scitbx/math/boost_python/distributions.cpp
+      scitbx/math/boost_python/exp_functions.cpp
+      scitbx/math/boost_python/zernike.cpp
+      scitbx/math/boost_python/zernike_moments.cpp
+      scitbx/math/boost_python/2d_zernike_moments.cpp
+      scitbx/math/boost_python/weighted_covariance.cpp
+      scitbx/math/boost_python/rotation.cpp
+      scitbx/math/boost_python/interpolation.cpp
+      scitbx/math/boost_python/tetrahedron.cpp
+      scitbx/math/boost_python/angle_derivative.cpp
+    LIBRARIES scitbx_slatec scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_random_ext
+    SOURCES
+      scitbx/random/boost_python/random_ext.cpp
+      scitbx/random/boost_python/basic_distributions.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_sparse_ext
+    SOURCES
+      scitbx/sparse/boost_python/vector.cpp
+      scitbx/sparse/boost_python/matrix.cpp
+      scitbx/sparse/boost_python/approx_equal.cpp
+      scitbx/sparse/boost_python/random.cpp
+      scitbx/sparse/boost_python/lu_factorization.cpp
+      scitbx/sparse/boost_python/sparse_ext.cpp
+    LIBRARIES scitbx_boost_python
   )
 endif()
 
