@@ -1,0 +1,9 @@
+--- a/libs/python/src/numpy/dtype.cpp
++++ b/libs/python/src/numpy/dtype.cpp
+@@ -98,7 +98,7 @@
+ }
+ 
+-int dtype::get_itemsize() const { return reinterpret_cast<PyArray_Descr*>(ptr())->elsize;}
++int dtype::get_itemsize() const { return PyDataType_ELSIZE(reinterpret_cast<PyArray_Descr*>(ptr()));}
+ 
+ bool equivalent(dtype const & a, dtype const & b) {
