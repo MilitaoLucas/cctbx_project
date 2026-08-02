@@ -237,6 +237,7 @@ if(CCTBX_BUILD_PYTHON)
     ${_boost_numpy_component}
     chrono
     timer
+    thread
   )
 
   add_library(scitbx_boost_python SHARED
@@ -779,6 +780,11 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES scitbx_boost_python Boost::timer
   )
 
+  cctbx_add_python_extension(boost_adaptbx_boost_thread_test_ext
+    SOURCES boost_adaptbx/tests/boost_thread_test.cpp
+    LIBRARIES scitbx_boost_python Boost::thread
+  )
+
   cctbx_add_python_extension(boost_adaptbx_graph_ext
     SOURCES boost_adaptbx/graph/graph_ext.cpp
     LIBRARIES scitbx_boost_python
@@ -921,6 +927,57 @@ if(CCTBX_BUILD_PYTHON)
     SOURCES iotbx/wildcard_ext.cpp
     LIBRARIES scitbx_boost_python
   )
+
+  cctbx_add_python_extension(iotbx_dtrek_ext
+    SOURCES iotbx/misc/boost_python/dtrek_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(iotbx_scalepack_ext
+    SOURCES iotbx/misc/boost_python/scalepack_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  set(UCIF_ANTLR3_SOURCES
+    ucif/antlr3/src/antlr3baserecognizer.c
+    ucif/antlr3/src/antlr3basetree.c
+    ucif/antlr3/src/antlr3basetreeadaptor.c
+    ucif/antlr3/src/antlr3bitset.c
+    ucif/antlr3/src/antlr3collections.c
+    ucif/antlr3/src/antlr3commontoken.c
+    ucif/antlr3/src/antlr3commontree.c
+    ucif/antlr3/src/antlr3commontreeadaptor.c
+    ucif/antlr3/src/antlr3commontreenodestream.c
+    ucif/antlr3/src/antlr3convertutf.c
+    ucif/antlr3/src/antlr3cyclicdfa.c
+    ucif/antlr3/src/antlr3debughandlers.c
+    ucif/antlr3/src/antlr3encodings.c
+    ucif/antlr3/src/antlr3exception.c
+    ucif/antlr3/src/antlr3filestream.c
+    ucif/antlr3/src/antlr3inputstream.c
+    ucif/antlr3/src/antlr3intstream.c
+    ucif/antlr3/src/antlr3lexer.c
+    ucif/antlr3/src/antlr3parser.c
+    ucif/antlr3/src/antlr3rewritestreams.c
+    ucif/antlr3/src/antlr3string.c
+    ucif/antlr3/src/antlr3tokenstream.c
+    ucif/antlr3/src/antlr3treeparser.c
+  )
+
+  cctbx_add_python_extension(iotbx_cif_ext
+    SOURCES
+      iotbx/cif/boost_python/cif_ext.cpp
+      ucif/cifLexer.cpp
+      ucif/cifParser.cpp
+      ${UCIF_ANTLR3_SOURCES}
+    LIBRARIES scitbx_boost_python
+  )
+  target_include_directories(iotbx_cif_ext PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ucif/antlr3
+    ${CMAKE_CURRENT_SOURCE_DIR}/ucif/antlr3/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ucif
+  )
+  target_compile_definitions(iotbx_cif_ext PRIVATE ANTLR3_NODEBUGGER)
 
   cctbx_add_python_extension(iotbx_xplor_ext
     SOURCES iotbx/xplor/boost_python/xplor_ext.cpp

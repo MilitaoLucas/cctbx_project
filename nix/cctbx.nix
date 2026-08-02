@@ -209,6 +209,10 @@ PY
        import iotbx_shelx_ext
        import iotbx_wildcard_ext
        import iotbx_xplor_ext
+       import iotbx_dtrek_ext
+       import iotbx_scalepack_ext
+       import iotbx_cif_ext
+       import boost_adaptbx_boost_thread_test_ext
        import mmtbx_reference_coordinate_ext
        import omptbx_ext
        import smtbx_ab_initio_ext
