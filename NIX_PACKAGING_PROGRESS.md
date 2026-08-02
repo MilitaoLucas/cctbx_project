@@ -136,13 +136,11 @@ The second consumer-check build reused the existing derivation and did not rebui
 
 ## Remaining Work
 
-- `ccp4io_adaptbx_ext` has no source in this repository (only under the
-  excluded `cctbx_example`), so it is not built.
-- The `iotbx_cif_ext` extension requires the generated ANTLR3 CIF parser
-  (`ucif`) which is not present in this tree, so it is not built.
-- `iotbx_dtrek_ext` and `iotbx_scalepack_ext` have no matching SConscript
-  source in this repository, so they are not built.
-- `boost_adaptbx_boost_thread_test_ext` is only built when Boost.Thread is
-  enabled upstream; it is not part of this build.
+- `ccp4io_adaptbx_ext` is now built as a separate CMake+Nix package
+  (`nix/ccp4io-adaptbx.nix`) that links the vendored CCP4/MMDB/SSM sources
+  from the `ccp4io` and `ccp4io_adaptbx` flake inputs.
+- Nothing else remains: `iotbx_cif_ext` (via in-repo `ucif`), `iotbx_dtrek_ext`,
+  `iotbx_scalepack_ext`, and `boost_adaptbx_boost_thread_test_ext` are now built
+  and imported by the install check.
 - Decide whether the current uncommitted CMake, Nix, and flake changes should
   be split into additional focused commits.
