@@ -16,6 +16,22 @@
         "type": "github"
       }
     },
+    "ccp4io_adaptbx": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1752270920,
+        "narHash": "sha256-1hfsLJ+QRpvX8hv6d3EfMlsthaS0SpNpqOL2wVeeHNI=",
+        "owner": "cctbx",
+        "repo": "ccp4io_adaptbx",
+        "rev": "d8534cac262365e8a815f275cd1f1aa1650972cb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cctbx",
+        "repo": "ccp4io_adaptbx",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1785571196,
@@ -35,6 +51,7 @@
     "root": {
       "inputs": {
         "ccp4io": "ccp4io",
+        "ccp4io_adaptbx": "ccp4io_adaptbx",
         "nixpkgs": "nixpkgs"
       }
     }
