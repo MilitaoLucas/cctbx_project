@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "ccp4io": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1638263421,
+        "narHash": "sha256-pxUprUNsIqF2D8jRRc3GbeveneyKzy3G0RLlhukLmhk=",
+        "owner": "cctbx",
+        "repo": "ccp4io",
+        "rev": "b58c4fb68902e4e6a58f4a585d0722e542516076",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cctbx",
+        "repo": "ccp4io",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1785571196,
@@ -18,6 +34,7 @@
     },
     "root": {
       "inputs": {
+        "ccp4io": "ccp4io",
         "nixpkgs": "nixpkgs"
       }
     }
