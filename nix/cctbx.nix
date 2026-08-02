@@ -5,7 +5,7 @@
 let
   inherit (pkgs) lib;
   pythonPackages = pkgs.python313Packages;
-  generatorPython = pythonPackages.python.withPackages (ps: [ ps.six ]);
+  generatorPython = pythonPackages.python.withPackages (ps: [ ps.six ps.pip ]);
   pythonBoost = pythonPackages.boost.override {
     enableNumpy = true;
   };
@@ -45,7 +45,54 @@ pythonPackages.buildPythonPackage {
   ];
 
   preConfigure = ''
-    export PYTHONPATH="${generatorPython}/lib/python3.13/site-packages''${PYTHONPATH:+:$PYTHONPATH}"
+    # LibTBX's bootstrap still checks for the deprecated `future` package.
+    # The package is not available for Python 3.13 in nixpkgs, but configure
+    # only needs its import-time marker during environment generation.
+    mkdir -p "$TMPDIR/future"
+    printf '__version__ = "0"\n' > "$TMPDIR/future/__init__.py"
+    export PYTHONPATH="$TMPDIR:${generatorPython}/lib/python3.13/site-packages''${PYTHONPATH:+:$PYTHONPATH}"
+
+    rm -rf "$TMPDIR/libtbx-build"
+    mkdir -p "$TMPDIR/libtbx-build"
+    (
+      cd "$TMPDIR/libtbx-build"
+      "${pythonPackages.python.interpreter}" "${src}/libtbx/configure.py" \
+        --current_working_directory "$TMPDIR/libtbx-build" \
+        --no_bin_python \
+        -r "${src}" cctbx smtbx
+    )
+  '';
+
+  postInstall = ''
+    install -d "$out/bin"
+    install -d "$out/share/cctbx"
+    export LIBTBX_BUILD="$TMPDIR/libtbx-build"
+    export PREFIX="$out"
+    export PYTHONPATH="$out/lib/python3.13/site-packages:${generatorPython}/lib/python3.13/site-packages"
+    "${pythonPackages.python.interpreter}" - <<'PY'
+import os
+import shutil
+
+from libtbx import env_config
+
+default_dir = os.path.join(os.environ["PREFIX"], "share", "cctbx")
+shutil.copy(
+  os.path.join(os.environ["LIBTBX_BUILD"], "libtbx_env"),
+  os.path.join(default_dir, "libtbx_env"),
+)
+
+# Nix keeps the Python interpreter and package prefix separate.
+env_config.get_installed_path = lambda: default_dir
+
+import libtbx.load_env
+def skip_command_line_directories(self):
+  pass
+for module in libtbx.env.module_list:
+  type(module).process_command_line_directories = skip_command_line_directories
+
+from libtbx.auto_build.conda_build import update_libtbx_env
+update_libtbx_env.update_libtbx_env(default_dir=default_dir)
+PY
   '';
 
   doCheck = false;
