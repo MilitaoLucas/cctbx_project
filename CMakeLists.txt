@@ -27,6 +27,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(Python3 3.13 EXACT REQUIRED COMPONENTS Interpreter)
 find_package(Threads REQUIRED)
+find_package(OpenMP REQUIRED)
 find_package(Boost 1.70 REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -120,6 +121,8 @@ set(CCTBX_CORE_SOURCES
   cctbx/miller/match_multi_indices.cpp
   cctbx/miller/sym_equiv.cpp
   cctbx/sgtbx/direct_space_asu/proto/direct_space_asu.cpp
+  cctbx/sgtbx/direct_space_asu/proto/reference_table.cpp
+  cctbx/sgtbx/direct_space_asu/proto/cut.cpp
   cctbx/sgtbx/bricks.cpp
   cctbx/sgtbx/change_of_basis_op.cpp
   cctbx/sgtbx/find_affine.cpp
@@ -351,7 +354,7 @@ if(CCTBX_BUILD_PYTHON)
       cctbx/maptbx/asymmetric_map_ext.cpp
       cctbx/maptbx/asymmetric_map.cpp
       iotbx/xplor/map_writer.cpp
-    LIBRARIES cctbx_core
+    LIBRARIES cctbx_core scitbx_boost_python OpenMP::OpenMP_CXX
   )
 
   cctbx_add_python_extension(cctbx_xray_ext
