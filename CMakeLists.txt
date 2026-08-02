@@ -18,6 +18,7 @@ option(CCTBX_BUILD_IOTBX "Build the iotbx layer" OFF)
 option(CCTBX_BUILD_MMTBX "Build the mmtbx layer" OFF)
 option(CCTBX_BUILD_GUI "Build GUI components" OFF)
 option(CCTBX_BUILD_XFEL "Build XFEL components" OFF)
+option(CCTBX_BUILD_SMTBX "Build the smtbx layer" ON)
 
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard used by cctbx")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -109,6 +110,7 @@ set(CCTBX_CORE_SOURCES
   cctbx/eltbx/wavelengths.cpp
   cctbx/eltbx/electron_scattering/peng1996.cpp
   cctbx/eltbx/attenuation_coefficient.cpp
+  cctbx/eltbx/sasaki_fallback.cpp
   cctbx/miller/asu.cpp
   cctbx/miller/bins.cpp
   cctbx/miller/index_generator.cpp
@@ -169,6 +171,7 @@ if(CCTBX_BUILD_PYTHON)
   find_package(Boost 1.70 REQUIRED COMPONENTS
     ${_boost_python_component}
     ${_boost_numpy_component}
+    chrono
   )
 
   add_library(scitbx_boost_python SHARED
@@ -318,6 +321,141 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES cctbx_core
   )
 
+  cctbx_add_python_extension(cctbx_xray_ext
+    SOURCES
+      cctbx/xray/boost_python/xray_ext.cpp
+      cctbx/xray/boost_python/conversions.cpp
+      cctbx/xray/boost_python/gradient_flags.cpp
+      cctbx/xray/boost_python/gradients_direct.cpp
+      cctbx/xray/boost_python/each_hkl_gradients_direct.cpp
+      cctbx/xray/boost_python/fast_gradients.cpp
+      cctbx/xray/boost_python/minimization.cpp
+      cctbx/xray/boost_python/scatterer_flags.cpp
+      cctbx/xray/boost_python/scatterer.cpp
+      cctbx/xray/boost_python/scattering_type_registry.cpp
+      cctbx/xray/boost_python/sampling_base.cpp
+      cctbx/xray/boost_python/sampled_model_density.cpp
+      cctbx/xray/boost_python/structure_factors_direct.cpp
+      cctbx/xray/boost_python/structure_factors_simple.cpp
+      cctbx/xray/boost_python/curvatures_simple.cpp
+      cctbx/xray/boost_python/targets.cpp
+      cctbx/xray/boost_python/f_model_bpl.cpp
+      cctbx/xray/boost_python/twin_targets.cpp
+      cctbx/xray/boost_python/grouped_data.cpp
+      cctbx/xray/boost_python/parameter_map.cpp
+      cctbx/xray/boost_python/twin_components.cpp
+      cctbx/xray/boost_python/thickness.cpp
+      cctbx/xray/boost_python/extinction.cpp
+      cctbx/xray/boost_python/dispersion_radial.cpp
+      cctbx/xray/boost_python/sigmaa.cpp
+      cctbx/xray/targets/shelxl_wght_ls_bpl.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+  target_include_directories(cctbx_xray_ext PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/fable"
+  )
+
+  cctbx_add_python_extension(cctbx_eltbx_xray_scattering_ext
+    SOURCES cctbx/eltbx/boost_python/xray_scattering_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_adptbx_ext
+    SOURCES
+      cctbx/adptbx/boost_python/adptbx_ext.cpp
+      cctbx/adptbx/boost_python/hirshfeld.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_uctbx_ext
+    SOURCES
+      cctbx/uctbx/boost_python/uctbx_ext.cpp
+      cctbx/uctbx/boost_python/fast_minimum_reduction.cpp
+      cctbx/uctbx/boost_python/niggli_reduction.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_sgtbx_ext
+    SOURCES
+      cctbx/sgtbx/boost_python/sgtbx_ext.cpp
+      cctbx/sgtbx/boost_python/brick.cpp
+      cctbx/sgtbx/boost_python/change_of_basis.cpp
+      cctbx/sgtbx/boost_python/find_affine.cpp
+      cctbx/sgtbx/boost_python/lattice_symmetry.cpp
+      cctbx/sgtbx/boost_python/phase_info.cpp
+      cctbx/sgtbx/boost_python/reciprocal_space_asu.cpp
+      cctbx/sgtbx/boost_python/rot_mx.cpp
+      cctbx/sgtbx/boost_python/rt_mx.cpp
+      cctbx/sgtbx/boost_python/search_symmetry.cpp
+      cctbx/sgtbx/boost_python/seminvariant.cpp
+      cctbx/sgtbx/boost_python/site_symmetry.cpp
+      cctbx/sgtbx/boost_python/space_group.cpp
+      cctbx/sgtbx/boost_python/space_group_type.cpp
+      cctbx/sgtbx/boost_python/sym_equiv_sites.cpp
+      cctbx/sgtbx/boost_python/symbols.cpp
+      cctbx/sgtbx/boost_python/tensor_rank_2.cpp
+      cctbx/sgtbx/boost_python/tensors.cpp
+      cctbx/sgtbx/boost_python/tr_vec.cpp
+      cctbx/sgtbx/boost_python/wyckoff.cpp
+      cctbx/sgtbx/boost_python/select_generators.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_maptbx_ext
+    SOURCES
+      cctbx/maptbx/boost_python/maptbx_ext.cpp
+      cctbx/maptbx/boost_python/grid_indices_around_sites.cpp
+      cctbx/maptbx/boost_python/grid_tags.cpp
+      cctbx/maptbx/boost_python/gridding.cpp
+      cctbx/maptbx/boost_python/misc.cpp
+      cctbx/maptbx/boost_python/peak_search.cpp
+      cctbx/maptbx/boost_python/pymol_interface.cpp
+      cctbx/maptbx/boost_python/statistics.cpp
+      cctbx/maptbx/boost_python/structure_factors.cpp
+      cctbx/maptbx/boost_python/coordinate_transformers.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_crystal_ext
+    SOURCES
+      cctbx/crystal/crystal_ext.cpp
+      cctbx/crystal/asu_clusters_bpl.cpp
+      cctbx/crystal/close_packing_bpl.cpp
+      cctbx/crystal/coordination_sequences_bpl.cpp
+      cctbx/crystal/direct_space_asu_bpl.cpp
+      cctbx/crystal/incremental_pairs_bpl.cpp
+      cctbx/crystal/neighbors_bpl.cpp
+      cctbx/crystal/pair_tables_bpl.cpp
+      cctbx/crystal/site_cluster_analysis_bpl.cpp
+      cctbx/crystal/symmetry_bpl.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_covariance_ext
+    SOURCES cctbx/covariance/boost_python/covariance_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_geometry_ext
+    SOURCES cctbx/geometry/boost_python/geometry_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(scitbx_cubicle_neighbors_ext
+    SOURCES scitbx/cubicle_neighbors_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_fftpack_ext
+    SOURCES scitbx/fftpack/boost_python/fftpack_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_math_ext
+    SOURCES cctbx/math/boost_python/math_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
   cctbx_add_python_extension(scitbx_math_ext
     SOURCES
       scitbx/math/boost_python/math_ext.cpp
@@ -370,6 +508,109 @@ if(CCTBX_BUILD_PYTHON)
       scitbx/sparse/boost_python/sparse_ext.cpp
     LIBRARIES scitbx_boost_python
   )
+
+  if(CCTBX_BUILD_SMTBX)
+    add_library(smtbx_refinement_constraints SHARED
+      smtbx/refinement/constraints/affine.cpp
+      smtbx/refinement/constraints/geometrical_hydrogens.cpp
+      smtbx/refinement/constraints/occupancy.cpp
+      smtbx/refinement/constraints/reparametrisation.cpp
+      smtbx/refinement/constraints/rigid.cpp
+      smtbx/refinement/constraints/same_group.cpp
+      smtbx/refinement/constraints/scaled_adp.cpp
+      smtbx/refinement/constraints/shared.cpp
+      smtbx/refinement/constraints/special_position.cpp
+      smtbx/refinement/constraints/symmetry_equivalent.cpp
+      smtbx/refinement/constraints/u_eq_dependent_u_iso.cpp
+      smtbx/refinement/constraints/u_iso_dependent_u_iso.cpp
+    )
+    target_link_libraries(smtbx_refinement_constraints PUBLIC
+      cctbx_core
+      scitbx_boost_python
+      cctbx_build_options
+    )
+    target_include_directories(smtbx_refinement_constraints PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    )
+    set_target_properties(smtbx_refinement_constraints PROPERTIES
+      OUTPUT_NAME smtbx_refinement_constraints
+    )
+
+    cctbx_add_python_extension(smtbx_array_family_ext
+      SOURCES smtbx/array_family/af_ext.cpp
+      LIBRARIES scitbx_boost_python cctbx_core
+    )
+
+    cctbx_add_python_extension(smtbx_stl_map_ext
+      SOURCES smtbx/stl/map_ext.cpp
+      LIBRARIES scitbx_boost_python
+    )
+
+    cctbx_add_python_extension(smtbx_refinement_constraints_ext
+      SOURCES
+        smtbx/refinement/constraints/boost_python/constraints_ext.cpp
+        smtbx/refinement/constraints/boost_python/affine.cpp
+        smtbx/refinement/constraints/boost_python/direction.cpp
+        smtbx/refinement/constraints/boost_python/geometrical_hydrogens.cpp
+        smtbx/refinement/constraints/boost_python/independent_scalar_parameters.cpp
+        smtbx/refinement/constraints/boost_python/occupancy.cpp
+        smtbx/refinement/constraints/boost_python/reparametrisation.cpp
+        smtbx/refinement/constraints/boost_python/rigid.cpp
+        smtbx/refinement/constraints/boost_python/same_group.cpp
+        smtbx/refinement/constraints/boost_python/scaled_adp.cpp
+        smtbx/refinement/constraints/boost_python/scatterer_parameters.cpp
+        smtbx/refinement/constraints/boost_python/shared.cpp
+        smtbx/refinement/constraints/boost_python/special_position.cpp
+        smtbx/refinement/constraints/boost_python/symmetry_equivalent.cpp
+        smtbx/refinement/constraints/boost_python/u_eq_dependent_u_iso.cpp
+        smtbx/refinement/constraints/boost_python/u_iso_dependent_u_iso.cpp
+      LIBRARIES smtbx_refinement_constraints scitbx_boost_python
+    )
+
+    cctbx_add_python_extension(smtbx_refinement_restraints_ext
+      SOURCES
+        smtbx/refinement/restraints/boost_python/restraints_ext.cpp
+        smtbx/refinement/restraints/boost_python/origin_fixing.cpp
+      LIBRARIES cctbx_core scitbx_boost_python
+    )
+
+    add_library(smtbx_ed_data SHARED smtbx/ED/dyn_calculator.cpp)
+    target_link_libraries(smtbx_ed_data PUBLIC
+      cctbx_core
+      scitbx_boost_python
+      cctbx_build_options
+    )
+    target_include_directories(smtbx_ed_data PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    )
+    set_target_properties(smtbx_ed_data PROPERTIES OUTPUT_NAME smtbx_ed_data)
+
+    cctbx_add_python_extension(smtbx_ed_data_ext
+      SOURCES smtbx/ED/boost_python/ed_data.cpp
+      LIBRARIES smtbx_ed_data scitbx_boost_python
+    )
+
+    cctbx_add_python_extension(smtbx_refinement_least_squares_ext
+      SOURCES
+        smtbx/refinement/boost_python/least_squares_ext.cpp
+        smtbx/refinement/boost_python/least_squares.cpp
+        smtbx/refinement/boost_python/weighting_schemes.cpp
+      LIBRARIES
+        smtbx_refinement_constraints
+        smtbx_ed_data
+        scitbx_boost_python
+        Boost::chrono
+    )
+
+    cctbx_add_python_extension(smtbx_structure_factors_direct_ext
+      SOURCES
+        smtbx/structure_factors/direct/boost_python/ext.cpp
+        smtbx/structure_factors/direct/boost_python/standard_xray.cpp
+      LIBRARIES cctbx_core scitbx_boost_python
+    )
+  endif()
 endif()
 
 install(DIRECTORY
@@ -381,13 +622,18 @@ install(DIRECTORY
 )
 install(DIRECTORY cctbx scitbx DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cctbx
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx")
-install(TARGETS cctbx_build_options cctbx_core scitbx_slatec
+set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec)
+if(CCTBX_BUILD_PYTHON AND CCTBX_BUILD_SMTBX)
+  list(APPEND CCTBX_NATIVE_TARGETS smtbx_refinement_constraints smtbx_ed_data)
+endif()
+install(TARGETS ${CCTBX_NATIVE_TARGETS}
   EXPORT cctbxTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 if(CCTBX_BUILD_PYTHON)
   install(TARGETS scitbx_boost_python
+    EXPORT cctbxTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 endif()

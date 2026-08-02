@@ -67,11 +67,30 @@ pythonPackages.buildPythonPackage {
       import scitbx_linalg_ext
       import scitbx_array_family_flex_ext
       import cctbx_array_family_flex_ext
-      import cctbx_statistics_ext
+       import cctbx_statistics_ext
+       import cctbx_xray_ext
+       import cctbx_eltbx_xray_scattering_ext
+       import cctbx_adptbx_ext
+       import cctbx_uctbx_ext
+       import cctbx_sgtbx_ext
+       import cctbx_maptbx_ext
+       import cctbx_crystal_ext
+       import cctbx_covariance_ext
+       import cctbx_geometry_ext
+       import scitbx_cubicle_neighbors_ext
+       import scitbx_fftpack_ext
+       import cctbx_math_ext
       import scitbx_math_ext
-      import scitbx_random_ext
-      import scitbx_sparse_ext
-    '
+       import scitbx_random_ext
+       import scitbx_sparse_ext
+       import smtbx_array_family_ext
+       import smtbx_stl_map_ext
+       import smtbx_refinement_constraints_ext
+       import smtbx_refinement_restraints_ext
+       import smtbx_ed_data_ext
+       import smtbx_refinement_least_squares_ext
+       import smtbx_structure_factors_direct_ext
+     '
     runHook postInstallCheck
   '';
 
