@@ -204,6 +204,7 @@ PY
        import cma_es_ext
        import determine_unit_cell_ext
        import iotbx_detectors_ext
+       import iotbx_detectors_bruker_ext
        import iotbx_dsn6_map_ext
        import iotbx_pdb_ext
        import iotbx_pdb_hierarchy_ext
@@ -214,7 +215,10 @@ PY
        import iotbx_scalepack_ext
        import iotbx_cif_ext
        import boost_adaptbx_boost_thread_test_ext
+       import boost_python_hybrid_times_ext
+       import scitbx_glmtbx_ext
        import mmtbx_reference_coordinate_ext
+       import mmtbx_tls_ext
        import omptbx_ext
        import smtbx_ab_initio_ext
        import iotbx_mtz_ext

@@ -792,6 +792,16 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES scitbx_boost_python Boost::thread
   )
 
+  cctbx_add_python_extension(boost_python_hybrid_times_ext
+    SOURCES boost_adaptbx/hybrid_times_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_glmtbx_ext
+    SOURCES scitbx/glmtbx/boost_python/ext.cc
+    LIBRARIES scitbx_boost_python
+  )
+
   cctbx_add_python_extension(boost_adaptbx_graph_ext
     SOURCES boost_adaptbx/graph/graph_ext.cpp
     LIBRARIES scitbx_boost_python
@@ -895,6 +905,13 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES scitbx_boost_python
   )
 
+  cctbx_add_python_extension(iotbx_detectors_bruker_ext
+    SOURCES
+      iotbx/detectors/bruker_ext.cpp
+      iotbx/detectors/bruker.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
   cctbx_add_python_extension(iotbx_dsn6_map_ext
     SOURCES iotbx/dsn6/ext.cpp
     LIBRARIES cctbx_core scitbx_boost_python
@@ -994,6 +1011,15 @@ if(CCTBX_BUILD_PYTHON)
   cctbx_add_python_extension(mmtbx_reference_coordinate_ext
     SOURCES mmtbx/geometry_restraints/boost_python/reference_coordinate_ext.cpp
     LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  add_library(mmtbx_tls SHARED mmtbx/tls/decompose.cpp)
+  target_link_libraries(mmtbx_tls PUBLIC cctbx_build_options m)
+  set_target_properties(mmtbx_tls PROPERTIES OUTPUT_NAME mmtbx_tls)
+
+  cctbx_add_python_extension(mmtbx_tls_ext
+    SOURCES mmtbx/tls/tls_ext.cpp
+    LIBRARIES mmtbx_tls cctbx_core scitbx_boost_python
   )
 
   cctbx_add_python_extension(omptbx_ext
@@ -1151,6 +1177,9 @@ install(DIRECTORY
 install(DIRECTORY cctbx scitbx DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cctbx
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx")
 set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec scitbx_minpack omptbx fast_linalg iotbx_xplor iotbx_pdb)
+if(CCTBX_BUILD_PYTHON)
+  list(APPEND CCTBX_NATIVE_TARGETS mmtbx_tls)
+endif()
 if(CCTBX_BUILD_PYTHON AND CCTBX_USE_CCP4IO)
   list(APPEND CCTBX_NATIVE_TARGETS iotbx_mtz)
 endif()
