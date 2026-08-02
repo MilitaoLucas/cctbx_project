@@ -33,9 +33,38 @@
         default = self.packages.${system}.cctbx-base;
       });
 
-      checks = forAllSystems (system: {
-        cctbx-base = self.packages.${system}.cctbx-base;
-      });
+      checks = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          python = pkgs.python313.withPackages (ps: [
+            ps.numpy
+            ps.setuptools
+            ps.six
+          ]);
+          cctbx = self.packages.${system}.cctbx;
+        in
+        {
+          cctbx-base = self.packages.${system}.cctbx-base;
+
+          # Test the realized package output, not the flake source as a new
+          # Python package input. This keeps the consumer check from causing
+          # a second cctbx build when the source tree is dirty.
+          cctbx-consumer-imports = pkgs.runCommand "cctbx-consumer-imports" {
+            nativeBuildInputs = [ python ];
+          } ''
+            export PYTHONPATH="${cctbx}/lib/python3.13/site-packages"
+            export LD_LIBRARY_PATH="${cctbx}/lib"
+            export LIBTBX_BUILD="${cctbx}/share/cctbx"
+            ${python}/bin/python -c '
+            import boost_optional_ext
+            import cctbx_eltbx_neutron_ext
+            import cctbx_asymmetric_map_ext
+            import cctbx.miller
+            print("consumer imports ok")
+            '
+            touch "$out"
+          '';
+        });
 
       devShells = forAllSystems (system: {
         default =

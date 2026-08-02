@@ -78,3 +78,4 @@ mmtbx/suitename/*.show.txt
 # Local Claude AI guidance files (not for shared use)
 CLAUDE.md
 */CLAUDE.md
+/cctbx_example

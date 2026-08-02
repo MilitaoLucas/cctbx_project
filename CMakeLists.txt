@@ -325,6 +325,105 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES cctbx_core
   )
 
+  cctbx_add_python_extension(cctbx_emma_ext
+    SOURCES cctbx/boost_python/emma_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_orientation_ext
+    SOURCES cctbx/boost_python/orientation_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_french_wilson_ext
+    SOURCES cctbx/boost_python/french_wilson_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  foreach(_eltbx_module
+      chemical_elements
+      henke
+      fp_fdp
+      icsd_radii
+      neutron
+      sasaki
+      tiny_pse
+      wavelengths
+      covalent_radii
+      attenuation_coefficient)
+    cctbx_add_python_extension(cctbx_eltbx_${_eltbx_module}_ext
+      SOURCES cctbx/eltbx/boost_python/${_eltbx_module}_ext.cpp
+      LIBRARIES cctbx_core
+    )
+  endforeach()
+
+  cctbx_add_python_extension(cctbx_sgtbx_asu_ext
+    SOURCES cctbx/sgtbx/direct_space_asu/proto/asu_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_anharmonic_ext
+    SOURCES cctbx/adptbx/boost_python/anharmonic_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_merging_ext
+    SOURCES cctbx/merging/ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_multipolar_ext
+    SOURCES cctbx/multipolar/aspherical_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_other_restraints_ext
+    SOURCES
+      cctbx/other_restraints/sump_bpl.cpp
+      cctbx/other_restraints/other_restraints_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_adp_restraints_ext
+    SOURCES
+      cctbx/adp_restraints/adp_restraints_bpl.cpp
+      cctbx/adp_restraints/adp_restraints_ext.cpp
+      cctbx/adp_restraints/rigid_bond_bpl.cpp
+      cctbx/adp_restraints/rigu_bpl.cpp
+      cctbx/adp_restraints/adp_similarity_bpl.cpp
+      cctbx/adp_restraints/isotropic_adp_bpl.cpp
+      cctbx/adp_restraints/aniso_restraints_bpl.cpp
+      cctbx/adp_restraints/fixed_u_eq_adp_bpl.cpp
+      cctbx/adp_restraints/npd_adp_bpl.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_geometry_restraints_ext
+    SOURCES
+      cctbx/geometry_restraints/geometry_restraints_ext.cpp
+      cctbx/geometry_restraints/bond_bpl.cpp
+      cctbx/geometry_restraints/bond_similarity_bpl.cpp
+      cctbx/geometry_restraints/bond_sorted_bpl.cpp
+      cctbx/geometry_restraints/nonbonded_bpl.cpp
+      cctbx/geometry_restraints/nonbonded_sorted_bpl.cpp
+      cctbx/geometry_restraints/angle_bpl.cpp
+      cctbx/geometry_restraints/dihedral_bpl.cpp
+      cctbx/geometry_restraints/chirality_bpl.cpp
+      cctbx/geometry_restraints/planarity_bpl.cpp
+      cctbx/geometry_restraints/parallelity_bpl.cpp
+      cctbx/geometry_restraints/motif_bpl.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_translation_search_ext
+    SOURCES
+      cctbx/translation_search/boost_python/translation_search_ext.cpp
+      cctbx/translation_search/boost_python/fast_nv1995.cpp
+      cctbx/translation_search/boost_python/fast_terms.cpp
+      cctbx/translation_search/boost_python/symmetry_flags.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
   cctbx_add_python_extension(cctbx_miller_ext
     SOURCES
       cctbx/miller/boost_python/miller_ext.cpp

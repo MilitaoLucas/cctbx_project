@@ -10,11 +10,19 @@ let
     enableNumpy = true;
   };
 in
-pythonPackages.buildPythonPackage {
+(pythonPackages.buildPythonPackage.override { stdenv = pkgs.ccacheStdenv; }) {
   pname = "cctbx";
   version = "unstable-2026-08-01";
 
-  inherit src;
+  src = lib.cleanSourceWith {
+    inherit src;
+    filter = path: type:
+      let pathString = toString path;
+      in lib.cleanSourceFilter path type
+        && pathString != "${toString src}/cctbx_example"
+        && !(lib.hasPrefix "${toString src}/cctbx_example/" pathString)
+        && pathString != "${toString src}/result";
+  };
   format = "other";
   dontUsePythonBuild = true;
   dontUsePythonInstall = true;
@@ -45,6 +53,10 @@ pythonPackages.buildPythonPackage {
   ];
 
   preConfigure = ''
+    export CCACHE_DIR="/var/cache/ccache"
+    export CCACHE_NOHASHDIR=1
+    export CCACHE_UMASK=007
+
     # LibTBX's bootstrap still checks for the deprecated `future` package.
     # The package is not available for Python 3.13 in nixpkgs, but configure
     # only needs its import-time marker during environment generation.
@@ -115,6 +127,27 @@ PY
       import scitbx_array_family_flex_ext
        import cctbx_array_family_flex_ext
        import cctbx_statistics_ext
+       import cctbx_emma_ext
+       import cctbx_orientation_ext
+       import cctbx_french_wilson_ext
+       import cctbx_eltbx_chemical_elements_ext
+       import cctbx_eltbx_henke_ext
+       import cctbx_eltbx_fp_fdp_ext
+       import cctbx_eltbx_icsd_radii_ext
+       import cctbx_eltbx_neutron_ext
+       import cctbx_eltbx_sasaki_ext
+       import cctbx_eltbx_tiny_pse_ext
+       import cctbx_eltbx_wavelengths_ext
+       import cctbx_eltbx_covalent_radii_ext
+       import cctbx_eltbx_attenuation_coefficient_ext
+       import cctbx_sgtbx_asu_ext
+       import cctbx_anharmonic_ext
+       import cctbx_merging_ext
+       import cctbx_multipolar_ext
+       import cctbx_other_restraints_ext
+       import cctbx_adp_restraints_ext
+       import cctbx_geometry_restraints_ext
+       import cctbx_translation_search_ext
        import cctbx_asymmetric_map_ext
        import cctbx_miller_ext
        import cctbx_xray_ext
