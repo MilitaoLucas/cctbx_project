@@ -59,6 +59,10 @@
             import boost_optional_ext
             import cctbx_eltbx_neutron_ext
             import cctbx_asymmetric_map_ext
+            import scitbx_lbfgs_ext
+            import scitbx_lbfgsb_ext
+            import scitbx_minpack_ext
+            import scitbx_lstbx_normal_equations_ext
             import cctbx.miller
             print("consumer imports ok")
             '

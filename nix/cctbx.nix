@@ -113,6 +113,7 @@ PY
     runHook preInstallCheck
     test -s "$out/lib/libcctbx.so"
     test -s "$out/lib/libscitbx_slatec.so"
+    test -s "$out/lib/libscitbx_minpack.so"
     ${pythonPackages.python.interpreter} -c '
       import boost_python_meta_ext
       import boost_optional_ext
@@ -165,6 +166,17 @@ PY
       import scitbx_math_ext
        import scitbx_random_ext
        import scitbx_sparse_ext
+       import scitbx_lbfgs_ext
+       import scitbx_lbfgsb_ext
+       import scitbx_lstbx_normal_equations_ext
+       import scitbx_minpack_ext
+       import scitbx_r3_utils_ext
+       import scitbx_iso_surface_ext
+       import scitbx_rigid_body_ext
+       import scitbx_wigner_ext
+       import scitbx_graphics_utils_ext
+       import scitbx_suffixtree_shared_ext
+       import scitbx_suffixtree_single_ext
        import smtbx_array_family_ext
        import smtbx_stl_map_ext
        import smtbx_refinement_constraints_ext

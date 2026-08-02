@@ -97,6 +97,10 @@ add_library(scitbx_slatec SHARED scitbx/slatec/lib_c.c)
 target_link_libraries(scitbx_slatec PRIVATE cctbx_build_options m)
 set_target_properties(scitbx_slatec PROPERTIES OUTPUT_NAME scitbx_slatec)
 
+add_library(scitbx_minpack SHARED scitbx/minpack/raw.cpp)
+target_link_libraries(scitbx_minpack PUBLIC cctbx_build_options m)
+set_target_properties(scitbx_minpack PROPERTIES OUTPUT_NAME scitbx_minpack)
+
 set(CCTBX_CORE_SOURCES
   cctbx/eltbx/basic.cpp
   cctbx/eltbx/xray_scattering/it1992.cpp
@@ -176,6 +180,7 @@ if(CCTBX_BUILD_PYTHON)
     ${_boost_python_component}
     ${_boost_numpy_component}
     chrono
+    timer
   )
 
   add_library(scitbx_boost_python SHARED
@@ -644,6 +649,65 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES scitbx_boost_python
   )
 
+  cctbx_add_python_extension(scitbx_lbfgs_ext
+    SOURCES scitbx/lbfgs/ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_lbfgsb_ext
+    SOURCES scitbx/lbfgsb/boost_python/lbfgsb_ext.cpp
+    LIBRARIES scitbx_boost_python Boost::timer Boost::chrono
+  )
+
+  cctbx_add_python_extension(scitbx_lstbx_normal_equations_ext
+    SOURCES
+      scitbx/lstbx/boost_python/lstbx_ext.cpp
+      scitbx/lstbx/boost_python/normal_equations.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_minpack_ext
+    SOURCES scitbx/minpack/ext.cpp
+    LIBRARIES scitbx_minpack scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_r3_utils_ext
+    SOURCES scitbx/r3_utils_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_iso_surface_ext
+    SOURCES scitbx/iso_surface/iso_surface_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_rigid_body_ext
+    SOURCES scitbx/rigid_body/ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_wigner_ext
+    SOURCES scitbx/wigner/ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_graphics_utils_ext
+    SOURCES scitbx/graphics_utils/ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_suffixtree_shared_ext
+    SOURCES scitbx/suffixtree/boost_python/suffixtree_shared_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(scitbx_suffixtree_single_ext
+    SOURCES
+      scitbx/suffixtree/boost_python/suffixtree_single_ext.cpp
+      scitbx/suffixtree/boost_python/object_extensions.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
   if(CCTBX_BUILD_SMTBX)
     add_library(smtbx_refinement_constraints SHARED
       smtbx/refinement/constraints/affine.cpp
@@ -757,7 +821,7 @@ install(DIRECTORY
 )
 install(DIRECTORY cctbx scitbx DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cctbx
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx")
-set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec)
+set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec scitbx_minpack)
 if(CCTBX_BUILD_PYTHON AND CCTBX_BUILD_SMTBX)
   list(APPEND CCTBX_NATIVE_TARGETS smtbx_refinement_constraints smtbx_ed_data)
 endif()
