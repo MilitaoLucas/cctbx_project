@@ -113,8 +113,10 @@ PY
       import scitbx_array_family_shared_ext
       import scitbx_linalg_ext
       import scitbx_array_family_flex_ext
-      import cctbx_array_family_flex_ext
+       import cctbx_array_family_flex_ext
        import cctbx_statistics_ext
+       import cctbx_asymmetric_map_ext
+       import cctbx_miller_ext
        import cctbx_xray_ext
        import cctbx_eltbx_xray_scattering_ext
        import cctbx_adptbx_ext

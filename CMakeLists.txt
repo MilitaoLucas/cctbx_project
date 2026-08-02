@@ -119,6 +119,7 @@ set(CCTBX_CORE_SOURCES
   cctbx/miller/match_indices.cpp
   cctbx/miller/match_multi_indices.cpp
   cctbx/miller/sym_equiv.cpp
+  cctbx/sgtbx/direct_space_asu/proto/direct_space_asu.cpp
   cctbx/sgtbx/bricks.cpp
   cctbx/sgtbx/change_of_basis_op.cpp
   cctbx/sgtbx/find_affine.cpp
@@ -318,6 +319,38 @@ if(CCTBX_BUILD_PYTHON)
 
   cctbx_add_python_extension(cctbx_statistics_ext
     SOURCES cctbx/boost_python/statistics_ext.cpp
+    LIBRARIES cctbx_core
+  )
+
+  cctbx_add_python_extension(cctbx_miller_ext
+    SOURCES
+      cctbx/miller/boost_python/miller_ext.cpp
+      cctbx/miller/boost_python/asu.cpp
+      cctbx/miller/boost_python/amplitude_normalisation.cpp
+      cctbx/miller/boost_python/bins.cpp
+      cctbx/miller/boost_python/change_basis.cpp
+      cctbx/miller/boost_python/expand_to_p1.cpp
+      cctbx/miller/boost_python/f_calc_map.cpp
+      cctbx/miller/boost_python/index_generator.cpp
+      cctbx/miller/boost_python/index_span.cpp
+      cctbx/miller/boost_python/lookup_utils.cpp
+      cctbx/miller/boost_python/match_bijvoet_mates.cpp
+      cctbx/miller/boost_python/match_indices.cpp
+      cctbx/miller/boost_python/match_multi_indices.cpp
+      cctbx/miller/boost_python/merge_equivalents.cpp
+      cctbx/miller/boost_python/phase_integrator.cpp
+      cctbx/miller/boost_python/phase_transfer.cpp
+      cctbx/miller/boost_python/randomize_amplitude_and_phase.cpp
+      cctbx/miller/boost_python/slices.cpp
+      cctbx/miller/boost_python/sym_equiv.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_asymmetric_map_ext
+    SOURCES
+      cctbx/maptbx/asymmetric_map_ext.cpp
+      cctbx/maptbx/asymmetric_map.cpp
+      iotbx/xplor/map_writer.cpp
     LIBRARIES cctbx_core
   )
 
