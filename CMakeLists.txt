@@ -1116,6 +1116,7 @@ if(CCTBX_BUILD_PYTHON)
         smtbx_refinement_constraints
         smtbx_ed_data
         scitbx_boost_python
+        Boost::thread
         Boost::chrono
     )
 
