@@ -79,3 +79,6 @@ mmtbx/suitename/*.show.txt
 CLAUDE.md
 */CLAUDE.md
 /cctbx_example
+
+# Nix build results
+/result
