@@ -552,6 +552,13 @@ if(CCTBX_BUILD_PYTHON)
     "${CMAKE_CURRENT_SOURCE_DIR}/fable"
   )
 
+  cctbx_add_python_extension(cctbx_xray_observations_ext
+    SOURCES
+      cctbx/xray/observations/boost_python/observations.cpp
+      cctbx/xray/observations/boost_python/observations_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
   cctbx_add_python_extension(cctbx_eltbx_xray_scattering_ext
     SOURCES cctbx/eltbx/boost_python/xray_scattering_ext.cpp
     LIBRARIES cctbx_core

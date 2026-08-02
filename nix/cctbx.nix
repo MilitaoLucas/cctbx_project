@@ -158,6 +158,7 @@ PY
        import cctbx_asymmetric_map_ext
        import cctbx_miller_ext
        import cctbx_xray_ext
+       import cctbx_xray_observations_ext
        import cctbx_eltbx_xray_scattering_ext
        import cctbx_adptbx_ext
        import cctbx_uctbx_ext
