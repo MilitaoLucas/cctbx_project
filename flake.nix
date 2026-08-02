@@ -5,10 +5,12 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     ccp4io.url = "github:cctbx/ccp4io";
     ccp4io.flake = false;
+    ccp4io_adaptbx.url = "github:cctbx/ccp4io_adaptbx";
+    ccp4io_adaptbx.flake = false;
   };
 
   outputs =
-    { self, nixpkgs, ccp4io }:
+    { self, nixpkgs, ccp4io, ccp4io_adaptbx }:
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -39,6 +41,12 @@
             inherit pkgs;
             src = ./.;
             ccp4io = self.packages.${system}.ccp4io;
+          };
+          ccp4io-adaptbx = import ./nix/ccp4io-adaptbx.nix {
+            inherit pkgs;
+            ccp4io = ccp4io;
+            ccp4io_adaptbx = ccp4io_adaptbx;
+            cctbx = ./.;
           };
           cctbx-base = import ./nix/cctbx-base.nix {
             inherit pkgs;
