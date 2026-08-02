@@ -1,5 +1,6 @@
 { pkgs
 , src ? ../.
+, ccp4io ? null
 }:
 
 let
@@ -38,7 +39,7 @@ in
     pythonBoost
     pkgs.eigen
     pkgs.zlib
-  ];
+  ] ++ lib.optional (ccp4io != null) ccp4io;
 
   dependencies = [
     pythonPackages.numpy
@@ -50,7 +51,12 @@ in
     "-DCCTBX_BUILD_PYTHON=ON"
     "-DCCTBX_BUILD_TESTS=OFF"
     "-DCMAKE_BUILD_TYPE=Release"
-  ];
+    "-DCCTBX_USE_CCP4IO=${if ccp4io != null then "ON" else "OFF"}"
+  ] ++ (if ccp4io != null then [
+    "-DCMAKE_INCLUDE_PATH=${ccp4io}/include"
+    "-DCMAKE_LIBRARY_PATH=${ccp4io}/lib"
+  ] else []);
+
 
   preConfigure = ''
     export CCACHE_DIR="/var/cache/ccache"
@@ -177,6 +183,37 @@ PY
        import scitbx_graphics_utils_ext
        import scitbx_suffixtree_shared_ext
        import scitbx_suffixtree_single_ext
+       import scitbx_examples_bevington_ext
+       import fast_linalg_ext
+       import boost_adaptbx_python_streambuf_test_ext
+       import boost_adaptbx_graph_ext
+       import boost_adaptbx_graph_connected_component_algorithm_ext
+       import boost_adaptbx_graph_breadth_first_search_ext
+       import boost_adaptbx_graph_graph_structure_comparison_ext
+       import boost_adaptbx_graph_maximum_clique_ext
+       import boost_adaptbx_graph_min_cut_max_flow_ext
+       import boost_adaptbx_graph_utility_ext
+       import boost_adaptbx_graph_metric_ext
+       import boost_adaptbx_graph_clustering_algorithm_ext
+       import cctbx_dmtbx_ext
+       import cctbx_large_scale_merging_ext
+       import cctbx_maptbx_bcr_bcr_ext
+       import cctbx_masks_ext
+       import cctbx_symmetry_search_ext
+       import cma_es_ext
+       import determine_unit_cell_ext
+       import iotbx_detectors_ext
+       import iotbx_dsn6_map_ext
+       import iotbx_pdb_ext
+       import iotbx_pdb_hierarchy_ext
+       import iotbx_shelx_ext
+       import iotbx_wildcard_ext
+       import iotbx_xplor_ext
+       import mmtbx_reference_coordinate_ext
+       import omptbx_ext
+       import smtbx_ab_initio_ext
+       import iotbx_mtz_ext
+       import iotbx_ccp4_map_ext
        import smtbx_array_family_ext
        import smtbx_stl_map_ext
        import smtbx_refinement_constraints_ext

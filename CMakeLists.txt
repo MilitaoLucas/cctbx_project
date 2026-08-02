@@ -19,6 +19,7 @@ option(CCTBX_BUILD_MMTBX "Build the mmtbx layer" OFF)
 option(CCTBX_BUILD_GUI "Build GUI components" OFF)
 option(CCTBX_BUILD_XFEL "Build XFEL components" OFF)
 option(CCTBX_BUILD_SMTBX "Build the smtbx layer" ON)
+option(CCTBX_USE_CCP4IO "Build the ccp4io-dependent iotbx extensions" OFF)
 
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard used by cctbx")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +32,16 @@ find_package(OpenMP REQUIRED)
 find_package(Boost 1.70 REQUIRED)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
+if(CCTBX_USE_CCP4IO)
+  find_library(CCP4IO_LIBRARY NAMES ccp4c REQUIRED)
+  find_path(CCP4IO_INCLUDE_DIR NAMES cmtzlib.h PATH_SUFFIXES ccp4 REQUIRED)
+  add_library(ccp4io UNKNOWN IMPORTED)
+  set_target_properties(ccp4io PROPERTIES
+    IMPORTED_LOCATION "${CCP4IO_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${CCP4IO_INCLUDE_DIR}"
+  )
+endif()
+
 set(CCTBX_GENERATED_ARRAY_FAMILY_DIR
   "${CMAKE_CURRENT_BINARY_DIR}/include/scitbx/array_family")
 set(CCTBX_GENERATED_ARRAY_FAMILY_STAMP
@@ -39,10 +50,13 @@ set(CCTBX_GENERATED_CCTBX_FLEX_FWD
   "${CMAKE_CURRENT_BINARY_DIR}/include/cctbx/boost_python/flex_fwd.h")
 set(CCTBX_GENERATED_SCITBX_FLEX_FWD
   "${CMAKE_CURRENT_BINARY_DIR}/include/scitbx/array_family/boost_python/flex_fwd.h")
+set(CCTBX_GENERATED_SMTBX_FLEX_FWD
+  "${CMAKE_CURRENT_BINARY_DIR}/include/smtbx/boost_python/flex_fwd.h")
 set(CCTBX_GENERATED_TYPE_ID_EQ
   "${CMAKE_CURRENT_BINARY_DIR}/include/boost_adaptbx/type_id_eq.h")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/cctbx/boost_python")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/scitbx/array_family/boost_python")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/smtbx/boost_python")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/boost_adaptbx")
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cctbx_flex_fwd.h.in"
@@ -52,6 +66,11 @@ configure_file(
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/scitbx_flex_fwd.h.in"
   "${CCTBX_GENERATED_SCITBX_FLEX_FWD}"
+  COPYONLY
+)
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/smtbx_flex_fwd.h.in"
+  "${CCTBX_GENERATED_SMTBX_FLEX_FWD}"
   COPYONLY
 )
 configure_file(
@@ -79,6 +98,7 @@ add_custom_target(cctbx_generated_headers
     "${CCTBX_GENERATED_ARRAY_FAMILY_STAMP}"
     "${CCTBX_GENERATED_CCTBX_FLEX_FWD}"
     "${CCTBX_GENERATED_SCITBX_FLEX_FWD}"
+    "${CCTBX_GENERATED_SMTBX_FLEX_FWD}"
     "${CCTBX_GENERATED_TYPE_ID_EQ}")
 
 add_library(cctbx_build_options INTERFACE)
@@ -100,6 +120,42 @@ set_target_properties(scitbx_slatec PROPERTIES OUTPUT_NAME scitbx_slatec)
 add_library(scitbx_minpack SHARED scitbx/minpack/raw.cpp)
 target_link_libraries(scitbx_minpack PUBLIC cctbx_build_options m)
 set_target_properties(scitbx_minpack PROPERTIES OUTPUT_NAME scitbx_minpack)
+
+add_library(omptbx SHARED omptbx/stubs.cpp)
+target_link_libraries(omptbx PUBLIC cctbx_build_options)
+target_include_directories(omptbx PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+set_target_properties(omptbx PROPERTIES OUTPUT_NAME omptbx)
+
+add_library(fast_linalg SHARED fast_linalg/np_ext.cpp)
+target_link_libraries(fast_linalg PRIVATE cctbx_build_options ${CMAKE_DL_LIBS})
+set_target_properties(fast_linalg PROPERTIES OUTPUT_NAME fast_linalg)
+
+add_library(iotbx_xplor SHARED
+  iotbx/xplor/map_reader.cpp
+  iotbx/xplor/map_writer.cpp
+)
+target_link_libraries(iotbx_xplor PUBLIC cctbx_build_options m)
+set_target_properties(iotbx_xplor PROPERTIES OUTPUT_NAME iotbx_xplor)
+
+add_library(iotbx_pdb SHARED
+  iotbx/pdb/hybrid_36_c.c
+  iotbx/pdb/hybrid_36_cpp.cpp
+  iotbx/pdb/utils.cpp
+  iotbx/pdb/write_utils.cpp
+  iotbx/pdb/hierarchy.cpp
+  iotbx/pdb/hierarchy_select.cpp
+  iotbx/pdb/hierarchy_atoms.cpp
+  iotbx/pdb/construct_hierarchy.cpp
+  iotbx/pdb/overall_counts.cpp
+  iotbx/pdb/hierarchy_write.cpp
+  iotbx/pdb/atom_selection.cpp
+  iotbx/pdb/input.cpp
+  iotbx/pdb/input_write.cpp
+)
+target_link_libraries(iotbx_pdb PUBLIC cctbx_build_options)
+set_target_properties(iotbx_pdb PROPERTIES OUTPUT_NAME iotbx_pdb)
 
 set(CCTBX_CORE_SOURCES
   cctbx/eltbx/basic.cpp
@@ -708,6 +764,209 @@ if(CCTBX_BUILD_PYTHON)
     LIBRARIES scitbx_boost_python
   )
 
+  cctbx_add_python_extension(scitbx_examples_bevington_ext
+    SOURCES scitbx/examples/bevington/bevington_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python Eigen3::Eigen
+  )
+
+  cctbx_add_python_extension(fast_linalg_ext
+    SOURCES fast_linalg/ext.cpp
+    LIBRARIES fast_linalg scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_python_streambuf_test_ext
+    SOURCES boost_adaptbx/tests/python_streambuf_test_ext.cpp
+    LIBRARIES scitbx_boost_python Boost::timer
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_ext
+    SOURCES boost_adaptbx/graph/graph_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_connected_component_algorithm_ext
+    SOURCES boost_adaptbx/graph/connected_component_algorithm_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_breadth_first_search_ext
+    SOURCES boost_adaptbx/graph/breadth_first_search_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_graph_structure_comparison_ext
+    SOURCES boost_adaptbx/graph/graph_structure_comparison_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_maximum_clique_ext
+    SOURCES boost_adaptbx/graph/maximum_clique_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_min_cut_max_flow_ext
+    SOURCES boost_adaptbx/graph/min_cut_max_flow_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_utility_ext
+    SOURCES boost_adaptbx/graph/utility_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_metric_ext
+    SOURCES boost_adaptbx/graph/metric_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(boost_adaptbx_graph_clustering_algorithm_ext
+    SOURCES boost_adaptbx/graph/clustering_algorithm_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_dmtbx_ext
+    SOURCES
+      cctbx/dmtbx/boost_python/dmtbx_ext.cpp
+      cctbx/dmtbx/boost_python/triplet_phase_relation.cpp
+      cctbx/dmtbx/boost_python/triplet_generator.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_large_scale_merging_ext
+    SOURCES cctbx/examples/merging/large_scale_merging_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python Eigen3::Eigen
+  )
+
+  cctbx_add_python_extension(cctbx_maptbx_bcr_bcr_ext
+    SOURCES cctbx/maptbx/bcr/bcr_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_masks_ext
+    SOURCES cctbx/masks/boost_python/masks_ext.cpp
+    LIBRARIES cctbx_core omptbx scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cctbx_symmetry_search_ext
+    SOURCES cctbx/symmetry_search/boost_python/symmetry_search_ext.cpp
+    LIBRARIES cctbx_core omptbx scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(cma_es_ext
+    SOURCES
+      cma_es/cma_es_ext.cpp
+      cma_es/cma/cmaes.cpp
+    LIBRARIES scitbx_boost_python
+  )
+  target_include_directories(cma_es_ext PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/cma_es
+  )
+
+  cctbx_add_python_extension(determine_unit_cell_ext
+    SOURCES cctbx/uctbx/determine_unit_cell/ext.cpp
+    LIBRARIES cctbx_core omptbx scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(fable_ext
+    SOURCES fable/ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+  target_include_directories(fable_ext PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/fable
+  )
+
+  cctbx_add_python_extension(iotbx_detectors_ext
+    SOURCES
+      iotbx/detectors/detectors_ext.cpp
+      iotbx/detectors/image_divider.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(iotbx_dsn6_map_ext
+    SOURCES iotbx/dsn6/ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(iotbx_pdb_ext
+    SOURCES
+      iotbx/pdb/ext.cpp
+      iotbx/pdb/hybrid_36_bpl.cpp
+      iotbx/pdb/common_residue_names_bpl.cpp
+      iotbx/pdb/rna_dna_atom_names_bpl.cpp
+      iotbx/pdb/input_bpl.cpp
+      iotbx/pdb/xray_structure_bpl.cpp
+    LIBRARIES iotbx_pdb cctbx_core scitbx_boost_python
+  )
+  target_include_directories(iotbx_pdb_ext PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/fable
+  )
+
+  cctbx_add_python_extension(iotbx_pdb_hierarchy_ext
+    SOURCES
+      iotbx/pdb/hierarchy_ext.cpp
+      iotbx/pdb/hierarchy_atom_bpl.cpp
+      iotbx/pdb/hierarchy_atoms_bpl.cpp
+    LIBRARIES iotbx_pdb cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(iotbx_shelx_ext
+    SOURCES iotbx/shelx/shelx_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+  target_include_directories(iotbx_shelx_ext PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/fable
+  )
+
+  cctbx_add_python_extension(iotbx_wildcard_ext
+    SOURCES iotbx/wildcard_ext.cpp
+    LIBRARIES scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(iotbx_xplor_ext
+    SOURCES iotbx/xplor/boost_python/xplor_ext.cpp
+    LIBRARIES iotbx_xplor cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(mmtbx_reference_coordinate_ext
+    SOURCES mmtbx/geometry_restraints/boost_python/reference_coordinate_ext.cpp
+    LIBRARIES cctbx_core scitbx_boost_python
+  )
+
+  cctbx_add_python_extension(omptbx_ext
+    SOURCES omptbx/ext.cpp
+    LIBRARIES omptbx scitbx_boost_python
+  )
+  target_include_directories(omptbx_ext PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+
+  if(CCTBX_USE_CCP4IO)
+    add_library(iotbx_mtz SHARED
+      iotbx/mtz/object.cpp
+      iotbx/mtz/crystal.cpp
+      iotbx/mtz/dataset.cpp
+      iotbx/mtz/column.cpp
+    )
+    target_link_libraries(iotbx_mtz PUBLIC cctbx_build_options ccp4io)
+    set_target_properties(iotbx_mtz PROPERTIES OUTPUT_NAME iotbx_mtz)
+
+    cctbx_add_python_extension(iotbx_mtz_ext
+      SOURCES
+        iotbx/mtz/ext.cpp
+        iotbx/mtz/object_bpl.cpp
+        iotbx/mtz/crystal_bpl.cpp
+        iotbx/mtz/dataset_bpl.cpp
+        iotbx/mtz/column_bpl.cpp
+        iotbx/mtz/batch_bpl.cpp
+      LIBRARIES iotbx_mtz cctbx_core scitbx_boost_python ccp4io
+    )
+
+    cctbx_add_python_extension(iotbx_ccp4_map_ext
+      SOURCES iotbx/ccp4_map/ext.cpp
+      LIBRARIES cctbx_core scitbx_boost_python ccp4io
+    )
+  endif()
+
   if(CCTBX_BUILD_SMTBX)
     add_library(smtbx_refinement_constraints SHARED
       smtbx/refinement/constraints/affine.cpp
@@ -809,6 +1068,11 @@ if(CCTBX_BUILD_PYTHON)
         smtbx/structure_factors/direct/boost_python/standard_xray.cpp
       LIBRARIES cctbx_core scitbx_boost_python
     )
+
+    cctbx_add_python_extension(smtbx_ab_initio_ext
+      SOURCES smtbx/ab_initio/ab_initio_ext.cpp
+      LIBRARIES scitbx_boost_python
+    )
   endif()
 endif()
 
@@ -821,7 +1085,10 @@ install(DIRECTORY
 )
 install(DIRECTORY cctbx scitbx DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cctbx
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx")
-set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec scitbx_minpack)
+set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec scitbx_minpack omptbx fast_linalg iotbx_xplor iotbx_pdb)
+if(CCTBX_BUILD_PYTHON AND CCTBX_USE_CCP4IO)
+  list(APPEND CCTBX_NATIVE_TARGETS iotbx_mtz)
+endif()
 if(CCTBX_BUILD_PYTHON AND CCTBX_BUILD_SMTBX)
   list(APPEND CCTBX_NATIVE_TARGETS smtbx_refinement_constraints smtbx_ed_data)
 endif()

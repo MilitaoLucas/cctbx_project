@@ -1,10 +1,14 @@
 {
   description = "Nix packaging for the Computational Crystallography Toolbox";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    ccp4io.url = "github:cctbx/ccp4io";
+    ccp4io.flake = false;
+  };
 
   outputs =
-    { self, nixpkgs }:
+    { self, nixpkgs, ccp4io }:
     let
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -16,22 +20,32 @@
             cctbx = import ./nix/cctbx.nix {
               pkgs = final;
               src = ./.;
+              ccp4io = self.packages.${final.system}.ccp4io;
             };
           })
         ];
       };
 
-      packages = forAllSystems (system: {
-        cctbx = import ./nix/cctbx.nix {
+      packages = forAllSystems (system:
+        let
           pkgs = import nixpkgs { inherit system; };
-          src = ./.;
-        };
-        cctbx-base = import ./nix/cctbx-base.nix {
-          pkgs = import nixpkgs { inherit system; };
-          src = ./.;
-        };
-        default = self.packages.${system}.cctbx-base;
-      });
+        in
+        {
+          ccp4io = import ./nix/ccp4io.nix {
+            inherit pkgs;
+            src = ccp4io;
+          };
+          cctbx = import ./nix/cctbx.nix {
+            inherit pkgs;
+            src = ./.;
+            ccp4io = self.packages.${system}.ccp4io;
+          };
+          cctbx-base = import ./nix/cctbx-base.nix {
+            inherit pkgs;
+            src = ./.;
+          };
+          default = self.packages.${system}.cctbx-base;
+        });
 
       checks = forAllSystems (system:
         let
@@ -63,6 +77,21 @@
             import scitbx_lbfgsb_ext
             import scitbx_minpack_ext
             import scitbx_lstbx_normal_equations_ext
+            import cctbx_maptbx_bcr_bcr_ext
+            import cctbx_masks_ext
+            import cctbx_symmetry_search_ext
+            import cctbx_dmtbx_ext
+            import determine_unit_cell_ext
+            import omptbx_ext
+            import iotbx_detectors_ext
+            import iotbx_dsn6_map_ext
+            import iotbx_pdb_ext
+            import iotbx_pdb_hierarchy_ext
+            import iotbx_shelx_ext
+            import iotbx_wildcard_ext
+            import iotbx_xplor_ext
+            import mmtbx_reference_coordinate_ext
+            import smtbx_ab_initio_ext
             import cctbx.miller
             print("consumer imports ok")
             '
