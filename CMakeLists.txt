@@ -1030,6 +1030,23 @@ if(CCTBX_BUILD_PYTHON)
     ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
+  add_library(xcif SHARED
+    xcif/data_model.cpp
+    xcif/tokenizer.cpp
+    xcif/numeric.cpp
+  )
+  target_link_libraries(xcif PUBLIC cctbx_build_options)
+  target_include_directories(xcif PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/xcif/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  )
+  set_target_properties(xcif PROPERTIES OUTPUT_NAME xcif)
+
+  cctbx_add_python_extension(xcif_ext
+    SOURCES xcif/xcif_ext.cpp
+    LIBRARIES xcif scitbx_boost_python
+  )
+
   if(CCTBX_USE_CCP4IO)
     add_library(iotbx_mtz SHARED
       iotbx/mtz/object.cpp
@@ -1178,7 +1195,7 @@ install(DIRECTORY cctbx scitbx DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/cctbx
   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.hxx")
 set(CCTBX_NATIVE_TARGETS cctbx_build_options cctbx_core scitbx_slatec scitbx_minpack omptbx fast_linalg iotbx_xplor iotbx_pdb)
 if(CCTBX_BUILD_PYTHON)
-  list(APPEND CCTBX_NATIVE_TARGETS mmtbx_tls)
+  list(APPEND CCTBX_NATIVE_TARGETS mmtbx_tls xcif)
 endif()
 if(CCTBX_BUILD_PYTHON AND CCTBX_USE_CCP4IO)
   list(APPEND CCTBX_NATIVE_TARGETS iotbx_mtz)

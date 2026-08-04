@@ -120,6 +120,7 @@ PY
     test -s "$out/lib/libcctbx.so"
     test -s "$out/lib/libscitbx_slatec.so"
     test -s "$out/lib/libscitbx_minpack.so"
+    test -s "$out/lib/libxcif.so"
     ${pythonPackages.python.interpreter} -c '
       import boost_python_meta_ext
       import boost_optional_ext
@@ -219,6 +220,7 @@ PY
        import scitbx_glmtbx_ext
        import mmtbx_reference_coordinate_ext
        import mmtbx_tls_ext
+       import xcif_ext
        import omptbx_ext
        import smtbx_ab_initio_ext
        import iotbx_mtz_ext
