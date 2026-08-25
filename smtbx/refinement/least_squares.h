@@ -15,6 +15,7 @@
 #include <smtbx/error.h>
 #include <smtbx/structure_factors/direct/standard_xray.h>
 #include <smtbx/refinement/least_squares_twinning.h>
+#include <smtbx/refinement/ml_target.h>
 #include <smtbx/refinement/weighting_schemes.h>
 
 #include <algorithm>
@@ -122,6 +123,121 @@ namespace smtbx { namespace refinement { namespace least_squares {
     void interrupt() {
       interrupted = true;
     }
+
+    /** @brief How long the main thread waits on a worker before looking up.
+
+    The workers cannot simply be joined and forgotten: a refinement has to stay
+    interruptible, so the progress listener must keep being called while they
+    run, and it is that listener's answer which cancels the build.
+
+    That used to be done by polling a flag with a fixed 100 ms sleep between
+    looks, which put a 100 ms floor under every threaded build. The
+    accumulation itself is a few milliseconds on anything short of a protein,
+    so on a small structure that wait *was* the cost of threading -- it is why a
+    threaded build measured a flat tenth of a second whatever the structure, and
+    why parallelising a small one came out several times slower than leaving it
+    serial.
+
+    A bounded join replaces the poll: the thread is joined the instant it
+    finishes, and the wait gives up every 100 ms only so the listener can be
+    called. A sleep-poll cannot do that at any interval -- asking for a shorter
+    sleep does not help much, because the granularity of a Windows sleep is
+    about a millisecond however small the argument, and asking for a longer one
+    is the original problem.
+
+    Joining is also what makes reading a worker's results safe: `running` is a
+    plain bool, so observing it false is not on its own a guarantee that
+    everything written before it is visible here.
+    */
+    static boost::chrono::milliseconds progress_interval() {
+      return boost::chrono::milliseconds(100);
+    }
+
+    /** @brief Bounds on how many workers accumulate a normal matrix each.
+
+    A ceiling and a floor, not a target. Every worker keeps a private copy of
+    the normal matrix, so both the memory a build costs and the O(n^2) it
+    spends allocating, zeroing and merging those copies grow with the thread
+    count, while the arithmetic there is to share does not. Returns therefore
+    fall away, and past some point another worker costs more than it brings.
+
+    The ceiling guards a machine with a great many cores against putting a copy
+    of the matrix on every one of them; on anything with fewer hardware threads
+    than this it does nothing at all. The floor guards the other end, where a
+    structure big enough that one matrix overruns the memory budget would
+    otherwise be left with a single worker and no sharing at all -- some is
+    worth having even when the budget cannot pay for it in full.
+     */
+    //@{
+    static int max_accumulator_threads() { return 16; }
+    static int min_accumulator_threads() { return 3; }
+    //@}
+
+    /** @brief A per-thread normal equations object, told its memory budget
+        where the type in question has one to be told.
+
+    Not every normal equations type the builder is instantiated on takes a
+    buffer size -- only the ones whose accumulator buffers rows. The two
+    overloads pick themselves: the first exists only when the three-argument
+    constructor does, and the int/long argument makes it the better match when
+    both are viable. Plain overload resolution, so no C++11 or later required.
+     */
+    //@{
+    template <typename NE>
+    static NE *new_chunk_equations(int n, std::size_t buffer_bytes, int,
+                                   decltype(NE(0, true, std::size_t(0)))* = 0)
+    {
+      return new NE(n, true, buffer_bytes);
+    }
+
+    template <typename NE>
+    static NE *new_chunk_equations(int n, std::size_t, long) {
+      return new NE(n);
+    }
+    //@}
+
+    /** @brief How much work one worker needs before it pays for itself.
+
+    Model a threaded build as
+
+        time ~ F/T + n^2 n_refl/(T r) + T n^2 m
+
+    -- the structure factor pass and the arithmetic both shared over T threads,
+    and against them the O(n^2) each worker pays for a private normal matrix,
+    which grows with T. Minimising over T,
+
+        T* = sqrt(n_refl / k),   k = r m
+
+    and **n cancels**: how many workers are worth having follows the number of
+    reflections, not the number of parameters. That is a property of the cost
+    structure and holds anywhere; only k, a ratio of merge cost to arithmetic
+    rate, belongs to the hardware.
+
+    Two constants because the accumulators differ greatly in m. The packed one
+    keeps half a matrix and folds each row in as it arrives, so it merges less
+    and wants more workers for the same work; the buffered one carries a full
+    matrix, a row buffer and a syrk besides. They are told apart as in
+    new_chunk_equations above -- the buffered accumulator is the one that takes
+    a buffer size.
+
+    Both values are deliberately conservative. Overshooting T* costs more than
+    undershooting it, every extra worker being another copy of the matrix, and
+    the optimum is flat around its minimum, so erring low gives up very little.
+     */
+    //@{
+    template <typename NE>
+    static double accumulator_work_constant(
+      int, decltype(NE(0, true, std::size_t(0)))* = 0) { return 195.; }
+
+    template <typename NE>
+    static double accumulator_work_constant(long) { return 30.; }
+
+    static int threads_for_work(double work_constant, std::size_t n_reflections)
+    {
+      double const t = std::sqrt(double(n_reflections)/work_constant);
+      return std::max(1, static_cast<int>(t + 0.5));
+    }
+    //@}
   private:
     mutable bool interrupted;
     static int& available_threads_var() {
@@ -212,7 +328,8 @@ namespace smtbx { namespace refinement { namespace least_squares {
       bool objective_only = false,
       bool may_parallelise = false,
       bool use_openmp = false,
-      int max_memory = 300)
+      int max_memory = 300,
+      ml_data<FloatType> const& ml = ml_data<FloatType>())
       :
       reflections_(reflections),
       f_mask_data(f_mask_data),
@@ -225,6 +342,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
       built(false),
       use_openmp(use_openmp),
       max_memory(max_memory),
+      ml(ml),
       f_calc_(reflections.size()),
       observables_(reflections.size()),
       weights_(reflections.size()),
@@ -247,6 +365,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
        */
       SMTBX_ASSERT(!(build_design_matrix && objective_only));
       check_dispersion_correction();
+      check_maximum_likelihood();
     }
 
     /** @brief Refuse a radial f'/f'' correction on twinned data.
@@ -265,6 +384,31 @@ namespace smtbx { namespace refinement { namespace least_squares {
       SMTBX_ASSERT(!(dc && dc->grad && reflections_.is_twinned()));
     }
 
+    /** @brief What maximum likelihood cannot be combined with, refused up front.
+
+    The likelihood is a statement about one amplitude and its distribution, so
+    the things it cannot be mixed with are the ones that change what the
+    computed observable means:
+
+    - twinning, because the components are summed as intensities and the
+      amplitudes of different components do not add;
+    - a non-trivial Fc correction (extinction, SWAT), because it returns an
+      intensity multiplier which has no place in the amplitude distribution;
+    - anything that is not one alpha, beta, epsilon and centric flag per
+      reflection.
+
+    Each of these would otherwise produce numbers rather than an error, which is
+    the worse outcome. OpenMP is refused separately, in build().
+    */
+    void check_maximum_likelihood() const {
+      if (!ml.active()) {
+        return;
+      }
+      SMTBX_ASSERT(ml.is_consistent_with(reflections_.size()));
+      SMTBX_ASSERT(!reflections_.is_twinned());
+      SMTBX_ASSERT(fc_cr.is_trivial());
+    }
+
     template<class NormalEquations>
     build_design_matrix_and_normal_equations(
       NormalEquations& normal_equations,
@@ -279,7 +423,8 @@ namespace smtbx { namespace refinement { namespace least_squares {
       bool objective_only = false,
       bool may_parallelise = false,
       bool use_openmp = false,
-      int max_memory = 300)
+      int max_memory = 300,
+      ml_data<FloatType> const& ml = ml_data<FloatType>())
       :
       reflections_(reflections),
       f_mask_data(f_mask_data),
@@ -292,6 +437,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
       built(false),
       use_openmp(use_openmp),
       max_memory(max_memory),
+      ml(ml),
       f_calc_(reflections.size()),
       observables_(reflections.size()),
       weights_(reflections.size()),
@@ -307,6 +453,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
       // as above: refused before anything is built
       SMTBX_ASSERT(!(build_design_matrix && objective_only));
       check_dispersion_correction();
+      check_maximum_likelihood();
       build(normal_equations, weighting_scheme);
     }
 
@@ -331,6 +478,13 @@ namespace smtbx { namespace refinement { namespace least_squares {
         //!!
         scitbx::matrix::tensors::initialise<FloatType>();
 #if defined(_OPENMP)
+        /* The OpenMP accumulation calls add_equations_omp, which is specialised
+           per accumulator in normal_equations_omp.h and is not provided for the
+           fixed-scale accumulator maximum likelihood uses. Refusing here beats
+           discovering it as a throw from inside a parallel region, and beats
+           far more a specialisation that silently accumulates the wrong matrix.
+         */
+        SMTBX_ASSERT(!(use_openmp && ml.active()));
         if (use_openmp) {
           typedef accumulate_reflection_chunk_omp<NormalEquations>
             accumulate_reflection_chunk_omp_t;
@@ -349,8 +503,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
             design_matrix_, max_memory);
           boost::thread th(boost::ref(job));
           //job();
-          while (job.running) {
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+          while (!th.try_join_for(parent_t::progress_interval())) {
             if (!this->OnProgress(~0, ~0)) {
               this->interrupt();
               th.join();
@@ -375,13 +528,83 @@ namespace smtbx { namespace refinement { namespace least_squares {
           return;
         }
 #endif
-        const int thread_count = parent_t::get_available_threads();
-        boost::thread_group pool;
+        /* Every worker keeps a normal matrix of its own, so what a threaded
+           build costs in memory grows with the thread count, and nothing in
+           `available_threads` knows that. On a large structure this is the
+           dominant allocation and can run to many times the budget asked for.
+
+           Bounding the workers by what the budget holds is not the trade it
+           appears to be: past a handful of them the extra copies buy overhead
+           and duplicate storage rather than arithmetic, the heavy kernel being
+           threaded by the BLAS already. A build bounded this way is usually
+           quicker as well as smaller.
+         */
+        int thread_count = parent_t::get_available_threads();
+        thread_count = std::min(thread_count, parent_t::max_accumulator_threads());
+        /* The work law is calibrated on structure factors, whose cost per
+           reflection is roughly the same for all of them. It must not be
+           applied to a functor whose reflections are far dearer than that: the
+           dynamical electron diffraction one computes a beam group per
+           reflection, orders of magnitude more work, so counting reflections
+           understates the work by about as much and would leave a build that
+           parallelises perfectly well with a handful of threads.
+
+           Told apart by raw_gradients(), as the Jacobian product above is: a
+           functor handing back gradients already in the basis of the refined
+           parameters is the dynamical one, and it is the same distinction
+           rather than a new flag invented for this.
+         */
+        if (f_calc_function.raw_gradients()) {
+          thread_count = std::min(thread_count, parent_t::threads_for_work(
+            parent_t::template accumulator_work_constant<NormalEquations>(0),
+            reflections_.size()));
+        }
+        if (max_memory > 0 && normal_equations.n_parameters() > 0) {
+          std::size_t const n = normal_equations.n_parameters();
+          std::size_t const result_bytes = n*n*sizeof(FloatType);
+          /* A quarter of the budget, not all of it. The private matrices are
+             not what the budget was written for -- the row buffers are -- and
+             giving them the whole of it lets a *generous* budget produce a
+             slower and hungrier build than a modest one, by making room for
+             copies that do not pay for themselves.
+
+             Floored, and on a very large structure the floor matters more than
+             the cap: once one matrix is itself larger than the share, the
+             division alone would say a single worker and give up threading
+             altogether, costing far more than the memory it saves.
+           */
+          std::size_t const budget = (std::size_t(max_memory) << 20)/4;
+          int const by_memory = static_cast<int>(
+            std::max<std::size_t>(parent_t::min_accumulator_threads(),
+              budget/std::max<std::size_t>(1, result_bytes)));
+          thread_count = std::min(thread_count, by_memory);
+        }
+        /* Held here rather than in a boost::thread_group so that each thread
+           can be joined individually with a bounded wait; a thread_group offers
+           join_all and nothing timed, and the progress listener has to keep
+           being called while the wait is in progress.
+         */
+        std::vector<boost::shared_ptr<boost::thread> > pool;
         std::vector<accumulate_reflection_chunk_ptr_t> accumulators;
         Scheduler scheduler(reflections_.size());
+        /* Each worker buffers rows of its own and, left to itself, takes the
+           accumulator's default -- generous, and multiplied by the thread count
+           far past any budget the caller set. Only the main accumulator ever
+           honoured max_memory; these did not.
+
+           The budget is shared out instead. Fewer rows to a chunk means more
+           chunks and one more pass over the result apiece, which is the trade;
+           the floor keeps that from becoming silly on a machine with many
+           threads and a small budget.
+         */
+        std::size_t const thread_buffer_bytes = max_memory > 0
+          ? std::max<std::size_t>(4u << 20,
+              ((std::size_t(max_memory) << 20)/4)/thread_count)
+          : 0;
         for(int thread_idx=0; thread_idx<thread_count; thread_idx++) {
           normal_equations_ptr_t chunk_normal_equations(
-            new NormalEquations(normal_equations.n_parameters()));
+            parent_t::template new_chunk_equations<NormalEquations>(
+              normal_equations.n_parameters(), thread_buffer_bytes, 0));
           accumulate_reflection_chunk_ptr_t accumulator(
             new accumulate_reflection_chunk_t(
               *this,
@@ -393,27 +616,28 @@ namespace smtbx { namespace refinement { namespace least_squares {
               fc_correction_ptr_t(fc_cr.fork()),
               objective_only,
               f_calc_.ref(), observables_.ref(), weights_.ref(),
-              design_matrix_));
+              design_matrix_, ml));
           accumulators.push_back(accumulator);
-          pool.create_thread(boost::ref(*accumulator));
+          pool.push_back(boost::shared_ptr<boost::thread>(
+            new boost::thread(boost::ref(*accumulator))));
         }
-        while (true) {
-          bool running = false;
-          for (int thread_idx = 0; thread_idx < thread_count; thread_idx++) {
-            if (accumulators[thread_idx]->running) {
-              running = true;
-              break;
+        /* Joined in turn, each with a bounded wait so that the progress
+           listener still runs while they work. Waiting on them one after
+           another rather than all at once loses nothing: the listener is called
+           at the same cadence whichever of them is outstanding, and the last
+           join returns when the last thread does either way.
+         */
+        for (int thread_idx = 0; thread_idx < thread_count; thread_idx++) {
+          while (!pool[thread_idx]->try_join_for(
+                   parent_t::progress_interval()))
+          {
+            if (!this->OnProgress(~0, ~0)) {
+              this->interrupt();
+              for (int j = thread_idx; j < thread_count; j++) {
+                pool[j]->join();
+              }
+              throw SMTBX_ERROR("external_interrupt");
             }
-          }
-
-          if (!running) {
-            break;
-          }
-          boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
-          if (!this->OnProgress(~0, ~0)) {
-            this->interrupt();
-            pool.join_all();
-            throw SMTBX_ERROR("external_interrupt");
           }
         }
 
@@ -439,7 +663,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
           fc_correction_ptr_t(fc_cr.fork()),
           objective_only,
           f_calc_.ref(), observables_.ref(), weights_.ref(),
-          design_matrix_);
+          design_matrix_, ml);
         job();
         if (job.exception_) {
           throw *job.exception_.get();
@@ -594,6 +818,13 @@ namespace smtbx { namespace refinement { namespace least_squares {
       af::ref<FloatType> observables;
       af::ref<FloatType> weights;
       af::versa<StoreType, af::c_grid<2> > &design_matrix;
+      /* Held by reference, not copied per worker. It is read-only and indexed
+         by i_h, so unlike f_calc_function and fc_cr there is nothing in it to
+         fork - and a copy would refcount its af::shared members, which is not
+         atomic, so workers destroying their copies would race. The builder owns
+         it and outlives every worker.
+       */
+      ml_data<FloatType> const& ml;
       bool running;
       accumulate_reflection_chunk(
         builder_base<FloatType>& parent,
@@ -612,7 +843,8 @@ namespace smtbx { namespace refinement { namespace least_squares {
         af::ref<std::complex<FloatType> > f_calc,
         af::ref<FloatType> observables,
         af::ref<FloatType> weights,
-        af::versa<StoreType, af::c_grid<2> > &design_matrix)
+        af::versa<StoreType, af::c_grid<2> > &design_matrix,
+        ml_data<FloatType> const& ml)
       : parent(parent),
         scheduler(scheduler),
         normal_equations_ptr(normal_equations_ptr), normal_equations(*normal_equations_ptr),
@@ -625,6 +857,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
         objective_only(objective_only), compute_grad(!objective_only),
         f_calc(f_calc), observables(observables), weights(weights),
         design_matrix(design_matrix),
+        ml(ml),
         running(true)
       {}
 
@@ -735,12 +968,58 @@ namespace smtbx { namespace refinement { namespace least_squares {
               }
               observables[i_h] = observable;
 
-              FloatType weight = weighting_scheme(reflections.fo_sq(i_h),
-                reflections.sig(i_h), observable, h, scale_factor);
+              FloatType weight, y_obs = reflections.fo_sq(i_h);
+              if (ml.active()) {
+                /* Maximum likelihood: the accumulator receives an effective
+                   observation and weight in place of the measured intensity
+                   and the weighting scheme, so that the equations it forms are
+                   those of the likelihood. See smtbx/refinement/ml_target.h.
+
+                   A reflection the target cannot use is given zero weight
+                   rather than skipped, keeping observables and weights at one
+                   entry per reflection for everything downstream.
+                 */
+                FloatType yo_eff, w_eff;
+                if (ml.is_free(i_h)) {
+                  /* Held out of the target sum: alpha and beta are estimated
+                     on the free set, so including it here would make that
+                     estimate self-referential. Zero weight and zero residual.
+                   */
+                  yo_eff = observable;
+                  w_eff = 0;
+                }
+                else if (ml.is_intensity()) {
+                  // the intensity target needs the measured sigma, which is
+                  // the whole of what distinguishes it from the amplitude one
+                  mli_effective_observation(
+                    reflections.fo_sq(i_h), reflections.sig(i_h), observable,
+                    ml.alpha[i_h], ml.beta[i_h],
+                    ml.scale_factor(),
+                    ml.epsilon[i_h], ml.centric[i_h],
+                    yo_eff, w_eff);
+                }
+                else {
+                  /* ml.scale_factor(), not the builder's: alpha carries the
+                     scale it was estimated against, and the builder's is the
+                     crystallographic one R1 and the difference map read.
+                   */
+                  ml_effective_observation(
+                    reflections.fo_sq(i_h), reflections.sig(i_h), observable,
+                    ml.alpha[i_h], ml.beta[i_h],
+                    ml.scale_factor(),
+                    ml.epsilon[i_h], ml.centric[i_h],
+                    yo_eff, w_eff);
+                }
+                y_obs = yo_eff;
+                weight = w_eff;
+              }
+              else {
+                weight = weighting_scheme(reflections.fo_sq(i_h),
+                  reflections.sig(i_h), observable, h, scale_factor);
+              }
               weights[i_h] = weight;
               if (objective_only) {
-                normal_equations.add_residual(observable,
-                  reflections.fo_sq(i_h), weight);
+                normal_equations.add_residual(observable, y_obs, weight);
               }
               else if (fast) {
                 if (build_design_matrix) {
@@ -751,7 +1030,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
                    the gradients were written into.
                  */
                 normal_equations.commit_equation(observable, grad,
-                  reflections.fo_sq(i_h), weight);
+                  y_obs, weight);
               }
               else {
                 if (fc_cr->grad) {
@@ -770,7 +1049,7 @@ namespace smtbx { namespace refinement { namespace least_squares {
                   }
                 }
                 normal_equations.add_equation(observable,
-                  gradients.ref(), reflections.fo_sq(i_h), weight);
+                  gradients.ref(), y_obs, weight);
                 if (build_design_matrix) {
                   store_design_row(design_matrix, i_h, grad, n_params, weight);
                 }
@@ -807,6 +1086,11 @@ namespace smtbx { namespace refinement { namespace least_squares {
       use_openmp,
       built;
     int max_memory;
+    /* Empty unless this is a maximum-likelihood build. Held by value, but the
+       arrays inside it are references owned by the caller for the duration of
+       the build - the same lifetime `reflections_` has.
+     */
+    ml_data<FloatType> ml;
 
     af::shared<std::complex<FloatType> > f_calc_;
     af::shared<FloatType> observables_;
@@ -856,12 +1140,13 @@ namespace smtbx { namespace refinement { namespace least_squares {
        bool objective_only = false,
        bool may_parallelise = false,
        bool use_openmp = false,
-       int max_memory = 300)
+       int max_memory = 300,
+       ml_data<FloatType> const& ml = ml_data<FloatType>())
        : parent_t(
         normal_equations,
         reflections, f_mask_data, weighting_scheme, scale_factor, f_calc_function,
         jacobian_transpose_matching_grad_fc, fc_cr,
-        objective_only, may_parallelise, use_openmp, max_memory)
+        objective_only, may_parallelise, use_openmp, max_memory, ml)
     {}
      virtual af::versa<FloatType, af::c_grid<2> > const& design_matrix() const {
        SMTBX_NOT_IMPLEMENTED();
@@ -913,12 +1198,13 @@ namespace smtbx { namespace refinement { namespace least_squares {
        bool objective_only = false,
        bool may_parallelise = false,
        bool use_openmp = false,
-       int max_memory = 300)
+       int max_memory = 300,
+       ml_data<FloatType> const& ml = ml_data<FloatType>())
        : parent_t(
         normal_equations,
         reflections, f_mask_data, weighting_scheme, scale_factor, f_calc_function,
         jacobian_transpose_matching_grad_fc, fc_cr,
-        objective_only, may_parallelise, use_openmp, max_memory)
+        objective_only, may_parallelise, use_openmp, max_memory, ml)
     {}
 
     virtual af::versa<FloatType, af::c_grid<2> > const& design_matrix() const {
