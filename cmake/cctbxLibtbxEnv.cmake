@@ -21,6 +21,8 @@ function(cctbx_generate_libtbx_env)
     endif()
   endforeach()
 
+  file(MAKE_DIRECTORY "${_build_dir}")
+
   set(_modules cctbx)
   if(CCTBX_BUILD_SMTBX)
     list(APPEND _modules smtbx)
@@ -28,7 +30,6 @@ function(cctbx_generate_libtbx_env)
 
   add_custom_command(
     OUTPUT "${_env_file}"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${_build_dir}"
     COMMAND ${CMAKE_COMMAND} -E env
       "PYTHONPATH=${_shims}:$ENV{PYTHONPATH}"
       "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/libtbx/configure.py"
