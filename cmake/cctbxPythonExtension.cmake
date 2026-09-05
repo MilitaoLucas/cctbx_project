@@ -21,10 +21,17 @@ function(cctbx_add_python_extension target)
     Python3::NumPy
   )
   add_dependencies(${target} cctbx_generated_headers)
+  if(CCTBX_WHEEL)
+    # In a wheel the shared libraries live in a sibling lib/ directory; point
+    # the loader there so no LD_LIBRARY_PATH is needed.
+    set_target_properties(${target} PROPERTIES
+      INSTALL_RPATH "$ORIGIN:$ORIGIN/lib"
+    )
+  endif()
   set_target_properties(${target} PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
   )
   install(TARGETS ${target}
-    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+    LIBRARY DESTINATION "${CCTBX_PYTHON_INSTALL_DIR}"
   )
 endfunction()

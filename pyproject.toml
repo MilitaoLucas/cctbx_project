@@ -1,0 +1,36 @@
+[build-system]
+requires = ["scikit-build-core>=0.9", "numpy"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "cctbx-base"
+version = "2026.8.dev27"
+description = "The Computational Crystallography Toolbox (cctbx)"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = ["numpy", "scipy", "six"]
+license = { text = "BSD-3-Clause-LBNL AND BSD-3-Clause AND BSL-1.0 AND LGPL-2.0-only AND LGPL-2.1-only AND LGPL-3.0-only AND MIT AND LGPL-2.0-or-later WITH WxWindows-exception-3.1" }
+
+[tool.scikit-build]
+minimum-version = "0.9"
+cmake.version = ">=3.25"
+build-dir = "build_wheel"
+wheel.install-dir = ""
+# All Python packages and extension modules are installed by CMake directly
+# into the wheel root, so disable the auto package-discovery copy.
+wheel.packages = []
+wheel.exclude = ["lib/cmake/*", "include/*"]
+sdist.exclude = ["/build/", "/build_wheel/", "/result/", "/cctbx_example/", ".git/", "*.so", "compile_commands.json", "/dist/"]
+# n_gaussian_raw.cpp is tracked but matches a .gitignore pattern, so the
+# gitignore-based sdist inclusion drops it; force it back in (it is required
+# by the cctbx_core build).
+sdist.include = ["cctbx/eltbx/xray_scattering/n_gaussian_raw.cpp"]
+cmake.args = [
+  "-DCCTBX_BUILD_PYTHON=ON",
+  "-DCCTBX_BUILD_TESTS=OFF",
+  "-DCCTBX_USE_CCP4IO=ON",
+  "-DCCTBX_USE_FETCHED_CCP4IO=ON",
+  "-DCCTBX_WHEEL=ON",
+  "-DCCTBX_PYTHON_INSTALL_DIR=.",
+  "-DCMAKE_BUILD_TYPE=Release",
+]

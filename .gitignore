@@ -82,3 +82,5 @@ CLAUDE.md
 
 # Nix build results
 /result
+/.devenv
+/.direnv
